@@ -5,8 +5,8 @@ const urlsToCache = [
     '/philipp-mastermind-pwa/styles.css',
     '/philipp-mastermind-pwa/script.js',
     '/philipp-mastermind-pwa/manifest.json',
-    '/philipp-mastermind-pwa/icons/icon-192.png',
-    '/philipp-mastermind-pwa/icons/icon-512.png'
+    '/philipp-mastermind-pwa/Icons/icon-192.png',
+    '/philipp-mastermind-pwa/Icons/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -28,12 +28,12 @@ self.addEventListener('fetch', event => {
 });
 
 self.addEventListener('activate', event => {
-    const cacheWhitelist = [CACHE_NAME];
+    const cacheWhitelists = [CACHE_NAME];
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames.map(cacheName => {
-                    if (!cacheWhitelist.includes(cacheName)) {
+                    if (!cacheWhitelists.includes(cacheName)) {
                         return caches.delete(cacheName);
                     }
                 })

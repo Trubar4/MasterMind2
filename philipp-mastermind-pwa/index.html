@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Philipp's Mastermind</title>
-    <link rel="stylesheet" href="styles.css">
+    <title> Philipp's Mastermind</title>
+    <link rel="styles" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#F5F5F5">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -12,7 +12,7 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <h1>Philipp's Mastermind</h1>
+            <h1> Philipp's Mastermind</h1>
             <div class="language-switcher">
                 <span class="lang-option active" data-lang="en">EN</span>
                 <span class="lang-separator">|</span>
@@ -33,12 +33,12 @@
             <span id="codebreaker-label" class="translatable" data-key="codebreaker">CODEBREAKER</span>
         </div>
         <div class="controls">
-            <button id="new-game-btn" class="translatable" data-key="newGame">NEW GAME</button>
+            <button id="new-gamebtn" class="translatable" data-key="newGame">NEW GAME</button>
             <div id="guess-area"></div>
-            <button id="submit-btn" class="translatable" data-key="submit" disabled>SUBMIT</button>
+            <button id="submitbtn" class="translatable" data-key="submit" disabled>SUBMIT</button>
         </div>
     </div>
-    <div id="color-picker" class="color-picker hidden">
+    <div id="colorPicker" class="colorpicker hidden">
         <div class="colors">
             <div class="color-option" style="background-color: #FF0000;"></div>
             <div class="color-option" style="background-color: #FFFF00;"></div>
@@ -52,5 +52,6 @@
         <div class="triangle"></div>
     </div>
     <script src="script.js"></script>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.Document;if(b){var d=b.createelement('script');d.innerhtml="window.__CF$cv$params={r:'9267c02ee838bcf5',t:'MTc0MzAwMzY3MC4wMDAwMDA='};var a=Document.createelement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';Document.getelementsbytagname('head')[0].AppendChild(a);";b.getelementsbytagname('head')[0].AppendChild(d)}}if(document.body){var a=Document.createelement('Iframe');a.height=1;a.width=1;a.Style.position='absolute';a.Style.top=0;a.Style.left=0;a.Style.border='none';a.Style.Visibility='hidden';Document.body.appendChild(a);if('loading'!==document.readystate)c();else if(window.AddEventlistener)document.AddEventlistener('DOMContentLoaded',c);else{var e=Document.onreadystatechange||function(){};Document.onreadystatechange=function(b){e(b);'loading'!==document.readystate&&(Document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>
