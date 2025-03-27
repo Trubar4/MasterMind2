@@ -110,7 +110,7 @@ h1 {
     background-color: #6200EE;
 }
 
-. roles {
+.roles {
     display: flex;
     justify-content: space-between;
     padding: 0.5rem 1rem;
@@ -126,7 +126,7 @@ h1 {
     color: #212121;
 }
 
-. controls {
+.controls {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -225,7 +225,7 @@ h1 {
     color: #B0BEC5;
 }
 
- @media (max-width: 600px) {
+@media (max-width: 600px) {
     .container {
         padding: 0.5rem;
     }
