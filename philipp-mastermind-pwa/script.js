@@ -3,7 +3,6 @@ const translations = {
         congratulations: "Congratulations! You cracked the code!",
         newGame: "NEW GAME",
         submit: "SUBMIT",
-        giveUp: "GIVE UP",
         check: "CHECK",
         colours: "Colours",
         positions: "Positions",
@@ -14,7 +13,6 @@ const translations = {
         congratulations: "Gratuliere! Du hast den Code geknackt!",
         newGame: "Neues Spiel",
         submit: "Senden",
-        giveUp: "AUFGEBEN",
         check: "Prüfen",
         colours: "Farben",
         positions: "Positionen",
@@ -23,15 +21,13 @@ const translations = {
     }
 };
 
-let currentLang = 'de';
+let currentLang = 'en';
 
 function setLanguage(lang) {
     currentLang = lang;
     document.querySelectorAll('.translatable').forEach(element => {
         const key = element.dataset.key;
-        if (key) {
-            element.textContent = translations[lang][key];
-        }
+        element.textContent = translations[lang][key];
     });
 
     document.querySelectorAll('.lang-option').forEach(option => {
@@ -39,18 +35,16 @@ function setLanguage(lang) {
     });
 }
 
-function setButtonLabel(button, key) {
-    button.dataset.key = key;
-    button.textContent = translations[currentLang][key];
-}
-
 document.addEventListener('DOMContentLoaded', () => {
+    // Language switcher event listeners
     document.querySelectorAll('.lang-option').forEach(option => {
         option.addEventListener('click', () => {
             const lang = option.dataset.lang;
             setLanguage(lang);
         });
     });
+
+    // Initial language setup
     setLanguage(currentLang);
 });
 
@@ -82,8 +76,6 @@ function initGame() {
     codebreakerLabel.classList.remove("active");
     submitBtn.disabled = true;
     submitBtn.classList.remove("active");
-    setButtonLabel(submitBtn, 'submit');
-    submitBtn.onclick = submitCode;
 
     for (let row = maxRows; row >= 1; row--) {
         const rowDiv = document.createElement("div");
@@ -175,22 +167,12 @@ function submitCode() {
     isCodemakerTurn = false;
     codemakerLabel.classList.remove("active");
     codebreakerLabel.classList.add("active");
-    setButtonLabel(submitBtn, 'giveUp');
-    submitBtn.onclick = revealCode;
-    submitBtn.disabled = false;
+    submitBtn.disabled = true;
+    submitBtn.classList.remove("active");
     for (let circle of guessArea.children) {
         circle.style.backgroundColor = "white";
     }
     addCheckButton();
-}
-
-function revealCode() {
-    for (let i = 0; i < 4; i++) {
-        guessArea.children[i].style.backgroundColor = secretCode[i];
-    }
-    alert(`The code was ${secretCode.join(', ')}`);
-    submitBtn.disabled = true;
-    if (checkButton) checkButton.disabled = true;
 }
 
 function addCheckButton() {
@@ -220,22 +202,16 @@ function checkGuess() {
     checkButton.disabled = true;
     checkButton.classList.remove("active");
     currentRow++;
-
-	if (currentRow <= maxRows) {
-		addCheckButton();
-	} else {
-		// Game over – reveal secret code using colored circles
-		showSecretCode();
-		// Optionally, you could also notify the player in the UI rather than an alert:
-		alert(translations[currentLang].gameOver);
-		submitBtn.disabled = true;
-		if (checkButton) checkButton.disabled = true;
-	}
-	if (correctPositions === 4) {
-		alert(translations[currentLang].congratulations);
-		submitBtn.disabled = true;
-		if (checkButton) checkButton.disabled = true;
-	}
+    if (currentRow <= maxRows) {
+        addCheckButton();
+    }
+    if (correctPositions === 4) {
+        alert(translations[currentLang].congratulations);
+        initGame();
+    } else if (currentRow > maxRows) {
+        alert(`Game Over! The code was ${secretCode}`);
+        initGame();
+    }
 }
 
 function checkGuessLogic(secret, guess) {
@@ -259,12 +235,13 @@ function checkGuessLogic(secret, guess) {
 }
 
 newGameBtn.addEventListener("click", initGame);
+submitBtn.addEventListener("click", submitCode);
 
 initGame();
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/philipp-mastermind-pwa/service-worker.js', { scope: '/philipp-mastermind-pwa/' })
+        navigator.serviceWorker.register('/philipp-mastermind-pwa/service-worker.js')
             .then(reg => console.log('Service worker registered!', reg))
             .catch(err => console.log('Service worker registration failed:', err));
     });
