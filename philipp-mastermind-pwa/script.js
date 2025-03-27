@@ -23,7 +23,7 @@ const translations = {
     }
 };
 
-let currentLang = 'en';
+let currentLang = 'de';
 
 function setLanguage(lang) {
     currentLang = lang;
@@ -220,21 +220,22 @@ function checkGuess() {
     checkButton.disabled = true;
     checkButton.classList.remove("active");
     currentRow++;
-    if (currentRow <= maxRows) {
-        addCheckButton();
-    } else {
-        for (let i = 0; i < 4; i++) {
-            guessArea.children[i].style.backgroundColor = secretCode[i];
-        }
-        alert(`Game Over! The code was ${secretCode.join(', ')}`);
-        submitBtn.disabled = true;
-        if (checkButton) checkButton.disabled = true;
-    }
-    if (correctPositions === 4) {
-        alert(translations[currentLang].congratulations);
-        submitBtn.disabled = true;
-        if (checkButton) checkButton.disabled = true;
-    }
+
+	if (currentRow <= maxRows) {
+		addCheckButton();
+	} else {
+		// Game over – reveal secret code using colored circles
+		showSecretCode();
+		// Optionally, you could also notify the player in the UI rather than an alert:
+		alert(translations[currentLang].gameOver);
+		submitBtn.disabled = true;
+		if (checkButton) checkButton.disabled = true;
+	}
+	if (correctPositions === 4) {
+		alert(translations[currentLang].congratulations);
+		submitBtn.disabled = true;
+		if (checkButton) checkButton.disabled = true;
+	}
 }
 
 function checkGuessLogic(secret, guess) {
