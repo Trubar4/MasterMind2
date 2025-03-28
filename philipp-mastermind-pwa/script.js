@@ -5,7 +5,7 @@ let currentGuess = [null, null, null, null];
 let isCodemakerTurn = true;
 const maxRows = 10;
 let currentMode = 'both'; // Standardmodus
-let currentLang = 'de'; // Standardeinstellung auf Deutsch
+let currentLang = 'de'; // Standardeinstellung auf Deutsche Sprache
 
 const translations = {
     en: {
