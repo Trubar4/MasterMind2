@@ -1,3 +1,12 @@
+const colors = ["#FF0000", "#FFFF00", "#FFC000", "#F36DED", "#0070C0", "#00B050", "#A6A6A6", "#000000"];
+let secretCode = [];
+let currentRow = 1;
+let currentGuess = [null, null, null, null];
+let isCodemakerTurn = true;
+const maxRows = 10;
+let currentMode = 'both'; // Standardmodus
+let currentLang = 'de'; // Standardeinstellung auf Deutsch
+
 const translations = {
     en: {
         congratulations: "Congratulations! You cracked the code!",
@@ -8,7 +17,11 @@ const translations = {
         colours: "Colours",
         positions: "Positions",
         codemaker: "CODEMAKER",
-        codebreaker: "CODEBREAKER"
+        codebreaker: "CODEBREAKER",
+        mode: "MODE",
+        bothMode: "BOTH",
+        codemakerMode: "CODEMAKER",
+        codebreakerMode: "CODEBREAKER"
     },
     de: {
         congratulations: "Gratuliere! Du hast den Code geknackt!",
@@ -18,12 +31,23 @@ const translations = {
         check: "Prüfen",
         colours: "Farben",
         positions: "Positionen",
-        codemaker: "Erstellen",
-        codebreaker: "Lösen"
+        codemaker: "Ersteller",
+        codebreaker: "Löser",
+        mode: "Modus",
+        bothMode: "BEIDE",
+        codemakerMode: "ERSTELLER",
+        codebreakerMode: "LÖSER"
     }
 };
 
-let currentLang = 'en';
+function generateSecretCode() {
+    return Array(4).fill().map(() => colors[Math.floor(Math.random() * colors.length)]);
+}
+
+function setButtonLabel(button, key) {
+    button.dataset.key = key;
+    button.textContent = translations[currentLang][key];
+}
 
 function setLanguage(lang) {
     currentLang = lang;
@@ -39,38 +63,6 @@ function setLanguage(lang) {
     });
 }
 
-function setButtonLabel(button, key) {
-    button.dataset.key = key;
-    button.textContent = translations[currentLang][key];
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.lang-option').forEach(option => {
-        option.addEventListener('click', () => {
-            const lang = option.dataset.lang;
-            setLanguage(lang);
-        });
-    });
-    setLanguage(currentLang);
-});
-
-const colors = ["#FF0000", "#FFFF00", "#FFC000", "#F36DED", "#0070C0", "#00B050", "#A6A6A6", "#000000"];
-let secretCode = [];
-let currentRow = 1;
-let currentGuess = [null, null, null, null];
-let isCodemakerTurn = true;
-const maxRows = 10;
-
-const board = document.getElementById("board");
-const guessArea = document.getElementById("guess-area");
-const colorPicker = document.getElementById("color-picker");
-const codemakerLabel = document.getElementById("codemaker-label");
-const codebreakerLabel = document.getElementById("codebreaker-label");
-const newGameBtn = document.getElementById("new-game-btn");
-const submitBtn = document.getElementById("submit-btn");
-
-let checkButton = null;
-
 function initGame() {
     board.innerHTML = "";
     guessArea.innerHTML = "";
@@ -78,31 +70,36 @@ function initGame() {
     currentRow = 1;
     currentGuess = [null, null, null, null];
     isCodemakerTurn = true;
-    codemakerLabel.classList.add("active");
-    codebreakerLabel.classList.remove("active");
-    submitBtn.disabled = true;
-    submitBtn.classList.remove("active");
-    setButtonLabel(submitBtn, 'submit');
-    submitBtn.onclick = submitCode;
+
+    if (currentMode === 'both') {
+        // Beide Spieler sind menschlich
+    } else if (currentMode === 'codemakerMode') {
+        // Computer ist Codebreaker, Mensch ist Codemaker
+    } else if (currentMode === 'codebreakerMode') {
+        secretCode = generateSecretCode();
+        for (let circle of guessArea.children) {
+            circle.style.background = "white";
+        }
+    }
 
     for (let row = maxRows; row >= 1; row--) {
         const rowDiv = document.createElement("div");
         rowDiv.className = "row";
         rowDiv.innerHTML = `
             <span class="row-number">${row}</span>
-            <span class="colors-feedback"></span>
-            <div class="circle" data-row="${row}" data-col="0"></div>
-            <div class="circle" data-row="${row}" data-col="1"></div>
-            <div class="circle" data-row="${row}" data-col="2"></div>
-            <div class="circle" data-row="${row}" data-col="3"></div>
-            <span class="position-feedback"></span>
+            <span class="colorsfeedback"></span>
+            <div class="circles" data-row="${row}"></div>
+            <span class="positionfeedback"></span>
         `;
-        const circles = rowDiv.querySelectorAll(".circle");
-        circles.forEach(circle => {
-            const row = parseInt(circle.dataset.row);
-            const col = parseInt(circle.dataset.col);
+        const circlesDiv = rowDiv.querySelector(".circles");
+        for (let col = 0; col < 4; col++) {
+            const circle = document.createElement("div");
+            circle.className = "circle";
+            circle.dataset.row = row;
+            circle.dataset.col = col;
             circle.addEventListener("click", () => onCircleClick(row, col));
-        });
+            circlesDiv.appendChild(circle);
+        }
         board.appendChild(rowDiv);
     }
 
@@ -110,21 +107,35 @@ function initGame() {
         const circle = document.createElement("div");
         circle.className = "circle";
         circle.dataset.col = col;
-        circle.addEventListener("click", () => onGuessCircleClick(col));
+        if (currentMode !== 'codebreakerMode') {
+            circle.addEventListener("click", () => onGuessCircleClick(col));
+        }
         guessArea.appendChild(circle);
     }
 
     setLanguage(currentLang);
+    setButtonLabel(document.getElementById('new-gamebtn'), 'newGame');
+    setButtonLabel(document.getElementById('submitbtn'), 'submit');
+    document.getElementById('submitbtn').disabled = true;
+    document.getElementById('submitbtn').classList.remove('active');
+    document.getElementById('submitbtn').onclick = submitCode;
+
+    if (currentMode === 'codebreakerMode') {
+        isCodemakerTurn = false;
+        codemakerLabel.classList.remove("active");
+        codebreakerLabel.classList.add("active");
+        addCheckButton();
+    }
 }
 
 function onCircleClick(row, col) {
-    if (!isCodemakerTurn && row === currentRow) {
+    if (!isCodemakerTurn && row === currentRow && currentMode === 'both') {
         showColorPicker(row, col, false);
     }
 }
 
 function onGuessCircleClick(col) {
-    if (isCodemakerTurn) {
+    if (isCodemakerTurn && (currentMode === 'both' || currentMode === 'codebreakerMode')) {
         showColorPicker(0, col, true);
     }
 }
@@ -160,7 +171,7 @@ function selectColor(row, col, color, isGuess) {
         if (isCodemakerTurn) {
             submitBtn.disabled = false;
             submitBtn.classList.add("active");
-        } else {
+        } else if (currentMode !== 'codemakerMode') {
             if (checkButton) {
                 checkButton.disabled = false;
                 checkButton.classList.add("active");
@@ -170,18 +181,27 @@ function selectColor(row, col, color, isGuess) {
 }
 
 function submitCode() {
-    secretCode = [...currentGuess];
-    currentGuess = [null, null, null, null];
-    isCodemakerTurn = false;
-    codemakerLabel.classList.remove("active");
-    codebreakerLabel.classList.add("active");
-    setButtonLabel(submitBtn, 'giveUp');
-    submitBtn.onclick = revealCode;
-    submitBtn.disabled = false;
-    for (let circle of guessArea.children) {
-        circle.style.backgroundColor = "white";
+    if (currentMode === 'both' || currentMode === 'codebreakerMode') {
+        secretCode = [...currentGuess];
+        currentGuess = [null, null, null, null];
+        isCodemakerTurn = false;
+        codemakerLabel.classList.remove("active");
+        codebreakerLabel.classList.add("active");
+        setButtonLabel(submitBtn, 'giveUp');
+        submitBtn.onclick = revealCode;
+        submitBtn.removeAttribute("disabled");
+        for (let circle of guessArea.children) {
+            circle.style.backgroundColor = "white";
+        }
+        addCheckButton();
+    } else if (currentMode === 'codemakerMode') {
+        secretCode = [...currentGuess];
+        currentGuess = [null, null, null, null];
+        isCodemakerTurn = false;
+        codemakerLabel.classList.remove("active");
+        codebreakerLabel.classList.add("active");
+        computerGuess();
     }
-    addCheckButton();
 }
 
 function revealCode() {
@@ -189,8 +209,8 @@ function revealCode() {
         guessArea.children[i].style.backgroundColor = secretCode[i];
     }
     alert(`The code was ${secretCode.join(', ')}`);
-    submitBtn.disabled = true;
-    if (checkButton) checkButton.disabled = true;
+    submitBtn.setAttribute("disabled", true);
+    if (checkButton) checkButton.setAttribute("disabled", true);
 }
 
 function addCheckButton() {
@@ -210,8 +230,8 @@ function addCheckButton() {
 function checkGuess() {
     const { correctPositions, correctColors } = checkGuessLogic(secretCode, currentGuess);
     const row = board.children[maxRows - currentRow];
-    row.querySelector(".colors-feedback").textContent = correctColors;
-    row.querySelector(".position-feedback").textContent = correctPositions;
+    row.querySelector(".colorsfeedback").textContent = correctColors;
+    row.querySelector(".positionfeedback").textContent = correctPositions;
 
     currentGuess = [null, null, null, null];
     for (let circle of guessArea.children) {
@@ -227,14 +247,37 @@ function checkGuess() {
             guessArea.children[i].style.backgroundColor = secretCode[i];
         }
         alert(`Game Over! The code was ${secretCode.join(', ')}`);
-        submitBtn.disabled = true;
-        if (checkButton) checkButton.disabled = true;
+        submitBtn.setAttribute("disabled", true);
+        if (checkButton) checkButton.setAttribute("disabled", true);
     }
     if (correctPositions === 4) {
         alert(translations[currentLang].congratulations);
-        submitBtn.disabled = true;
-        if (checkButton) checkButton.disabled = true;
+        submitBtn.setAttribute("disabled", true);
+        if (checkButton) checkButton.setAttribute("disabled", true);
     }
+}
+
+function computerGuess() {
+    if (currentRow > maxRows) {
+        alert("Computer failed to crack the code.");
+        return;
+    }
+    let guess = Array(4).fill().map(() => colors[Math.floor(Math.random() * colors.length)]);
+    const row = board.children[maxRows - currentRow];
+    const circles = row.querySelectorAll(".circle");
+    for (let i = 0; i < 4; i++) {
+        circles[i].style.backgroundColor = guess[i];
+    }
+    const { correctPositions, correctColors } = checkGuessLogic(secretCode, guess);
+    row.querySelector(".colorsfeedback").textContent = correctColors;
+    row.querySelector(".positionfeedback").textContent = correctPositions;
+    if (correctPositions == 4) {
+        alert("Computer cracked the code!");
+        submitBtn.setAttribute("disabled", true);
+        return;
+    }
+    currentRow++;
+    setTimeout(computerGuess, 1000);
 }
 
 function checkGuessLogic(secret, guess) {
@@ -257,8 +300,10 @@ function checkGuessLogic(secret, guess) {
     return { correctPositions, correctColors };
 }
 
-newGameBtn.addEventListener("click", initGame);
+document.getElementById('new-gamebtn').addEventListener('click', initGame);
+document.getElementById('submitbtn').addEventListener('click', submitCode);
 
+setLanguage(currentLang);
 initGame();
 
 if ('serviceWorker' in navigator) {
