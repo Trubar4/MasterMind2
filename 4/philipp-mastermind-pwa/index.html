@@ -142,6 +142,25 @@
     });
   </script>
   
+    <!-- Fallback to original script if needed -->
+  <script>
+    // Wait to see if modules load correctly
+    setTimeout(function() {
+      if (!window.modulesLoaded) {
+        console.log('Falling back to original script.js');
+        showDebugMessage('Module loading failed - falling back to original script');
+        
+        // Load the original script as fallback
+        const script = document.createElement('script');
+        script.src = 'script.js';
+        script.onerror = function() {
+          console.error('Failed to load fallback script');
+          showDebugMessage('Failed to load fallback script.js');
+        };
+        document.body.appendChild(script);
+      }
+    }, 2000);
+  </script>
 
 </body>
 </html>
