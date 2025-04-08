@@ -1,1189 +1,1701 @@
-const translations = {
-    en: {
-        congratulations: "Code cracked",
-        newGame: "New Game",
-        submit: "Submit",
-        giveUp: "Give-up",
-        check: "Check",
-        colours: "Colours",
-        positions: "Positions",
-        codemaker: "Codemaker",
-        codebreaker: "Coderbreaker",
-        mode: "Mode",
-        both: "2 Player",
-        codemakerMode: "Computer breakes Code",
-        codebreakerMode: "Computer creates Code",
-        findCode: "Please try to find the right code."
-    },
-    de: {
-        congratulations: "Code geknackt",
-        newGame: "Neues Spiel",
-        submit: "Senden",
-        giveUp: "AUFGEBEN",
-        check: "Prüfen",
-        colours: "Farben",
-        positions: "Positionen",
-        codemaker: "Ersteller",
-        codebreaker: "Löser",
-        mode: "Modus",
-        both: "2-Spieler",
-        codemakerMode: "Computer knackt Code",
-        codebreakerMode: "Computer erstellt Code",
-        findCode: "Bitte versuche den richtigen Code zu finden."
-    }
+// App version - increment this when making changes
+const APP_VERSION = '2.0.2';
+
+// Utility function for debugging
+function debug(message) {
+  console.log(`[DEBUG] ${message}`);
+}
+
+debug('Script starting');
+
+// Game constants
+const COLORS = [
+  "#FF0000", // Red
+  "#FFFF00", // Yellow
+  "#FFC000", // Orange/Gold
+  "#F36DED", // Pink
+  "#0070C0", // Blue
+  "#00B050", // Green
+  "#A6A6A6", // Gray
+  "#000000", // Black
+];
+
+const GAME_MODES = {
+  BOTH: 'both',
+  CODEMAKER: 'codemakerMode',
+  CODEBREAKER: 'codebreakerMode',
 };
 
+const MAX_ROWS = 10;
+let CODE_LENGTH = 4;
+
+// Translations
+const translations = {
+  en: {
+    congratulations: "Code cracked",
+    newGame: "New Game",
+    submit: "Submit",
+    giveUp: "Give Up", // Standard English text
+    giveUpShort: "Show", // Shorter version for small screens
+    check: "Check",
+    colours: "Color",
+    positions: "Position",
+    codemaker: "Maker",
+    codebreaker: "Breaker",
+    mode: "Mode",
+    both: "2 Player",
+    codemakerMode: "Computer breaks Code",
+    codebreakerMode: "Computer creates Code",
+    findCode: "  Find the code.",
+	circles: "Circles"
+  },
+  de: {
+    congratulations: "Code geknackt",
+    newGame: "Neues Spiel",
+    submit: "Senden",
+    giveUp: "Zeigen", // Standard German text
+    giveUpShort: "Zeige", // Same text for German (can be shortened if needed)
+    check: "Prüfen",
+    colours: "Farbe",
+    positions: "Position",
+    codemaker: "Ersteller",
+    codebreaker: "Löser",
+    mode: "Modus",
+    both: "2-Spieler",
+    codemakerMode: "Computer knackt Code",
+    codebreakerMode: "Computer erstellt Code",
+    findCode: "  Finde den Code.",
+	circles: "Kreise"
+  }
+};
+
+// Game state
 let currentLang = 'de';
-let currentMode = 'both';
-let gameOver = false; // Add this game state variable
+let currentMode = GAME_MODES.BOTH;
+let gameOver = false;
+let secretCode = [];
+let currentRow = 1;
+let currentGuess = Array(CODE_LENGTH).fill(null);
+let isCodemakerTurn = true;
 
-// Add CSS for mode options
-function addModeCss() {
-    console.log('Function called: addModeCss()');
-    const existingStyle = document.getElementById('mode-option-styles');
-    if (existingStyle) {
-        console.log('Removing existing mode styles');
-        existingStyle.remove(); // Remove any existing style to avoid duplication
-    }
-    
-    console.log('Creating new mode style element');
-    const styleElement = document.createElement('style');
-    styleElement.id = 'mode-option-styles';
-    styleElement.textContent = `
-        .mode-option {
-            cursor: pointer;
-            padding: 5px 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-            color: #888; /* Grey text for non-selected options */
-            font-weight: normal;
-        }
-        
-        .mode-option:hover {
-            background-color: #e0e0e0;
-        }
-        
-        .mode-option.selected {
-            color: #000; /* Black text for selected option */
-            font-weight: bold;
-        }
-    `;
-    document.head.appendChild(styleElement);
-    console.log('Mode CSS added to document head');
+// DOM Elements - will be initialized when DOM is loaded
+let board;
+let guessArea;
+let colorPicker;
+let modePicker;
+let codemakerLabel;
+let codebreakerLabel;
+let newGameBtn;
+let submitBtn;
+let checkButton = null;
+
+/**
+ * Initialize DOM references
+ */
+function initDomReferences() {
+  debug('Initializing DOM references');
+  
+  board = document.getElementById("board");
+  guessArea = document.getElementById("guess-area");
+  colorPicker = document.getElementById("color-picker");
+  modePicker = document.getElementById("modepicker");
+  codemakerLabel = document.getElementById("codemaker-label");
+  codebreakerLabel = document.getElementById("codebreaker-label");
+  newGameBtn = document.getElementById("new-gamebtn");
+  submitBtn = document.getElementById("submitbtn");
+  
+  // Check if we found all elements
+  const allFound = board && guessArea && colorPicker && modePicker && 
+                   codemakerLabel && codebreakerLabel && newGameBtn && submitBtn;
+  
+  debug(`All DOM elements found: ${allFound}`);
+  
+  if (!allFound) {
+    console.error('Missing DOM elements:', {
+      board: !!board,
+      guessArea: !!guessArea,
+      colorPicker: !!colorPicker,
+      modePicker: !!modePicker,
+      codemakerLabel: !!codemakerLabel,
+      codebreakerLabel: !!codebreakerLabel,
+      newGameBtn: !!newGameBtn,
+      submitBtn: !!submitBtn
+    });
+  }
+  
+  return allFound;
 }
 
-// Function to update mode picker with correct translations and current selection
-function updateModePicker() {
-    console.log('Function called: updateModePicker()');
-    const modePicker = document.getElementById('modepicker');
-    if (!modePicker) {
-        console.log('Mode picker element not found, returning');
-        return;
-    }
-    
-    console.log('Clearing existing mode options');
-    // Clear existing options
-    modePicker.innerHTML = '';
-    
-    // Create new options with correct translations
-    const modeOptions = [
-        { mode: 'both', key: 'both' },
-        { mode: 'codemakerMode', key: 'codemakerMode' },
-        { mode: 'codebreakerMode', key: 'codebreakerMode' }
-    ];
-    
-    console.log('Creating new mode options with current language:', currentLang);
-    modeOptions.forEach(option => {
-        const div = document.createElement('div');
-        div.className = 'mode-option';
-        div.dataset.mode = option.mode;
-        div.textContent = translations[currentLang][option.key];
-        
-        // Add selected class if this is the current mode
-        if (option.mode === currentMode) {
-            console.log(`Mode ${option.mode} is currently selected`);
-            div.classList.add('selected');
-        }
-        
-        div.addEventListener('click', () => {
-            console.log(`Mode option clicked: ${option.mode}`);
-            currentMode = option.mode;
-            modePicker.classList.add("hidden");
-            console.log('Mode picker hidden after selection');
-            updateModePicker(); // Update the selection visually
-            initGame(); // Restart game with new mode
-        });
-        
-        modePicker.appendChild(div);
-    });
-    console.log('Mode picker updated successfully');
+/**
+ * Adjust game scaling based on screen dimensions
+ */
+function adjustGameScaling() {
+  debug('Adjusting game scaling');
+  
+  const gameWrapper = document.querySelector('.game-wrapper');
+  const container = document.querySelector('.container');
+  
+  if (!gameWrapper || !container) {
+    console.error('Game wrapper or container not found');
+    return;
+  }
+  
+  // Get viewport dimensions
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+  
+  // Calculate appropriate scaling
+  const isLandscape = viewportWidth > viewportHeight;
+  
+  if (isLandscape && viewportHeight < 600) {
+    // Landscape mode on small screens
+    const scale = Math.min(0.9, viewportHeight / 650);
+    container.style.transform = `scale(${scale})`;
+    container.style.transformOrigin = 'center top';
+    gameWrapper.style.alignItems = 'flex-start';
+    gameWrapper.style.paddingTop = '10px';
+  } else if (viewportWidth < 400) {
+    // Very small screens
+    const scale = Math.min(0.9, viewportWidth / 400);
+    container.style.transform = `scale(${scale})`;
+    container.style.transformOrigin = 'center center';
+    gameWrapper.style.alignItems = 'center';
+    gameWrapper.style.paddingTop = '0';
+  } else {
+    // Normal scaling
+    container.style.transform = '';
+    gameWrapper.style.alignItems = 'center';
+    gameWrapper.style.paddingTop = '0';
+  }
 }
 
-// Function to setup the language switcher with proper handlers
-function setupLanguageSwitcher() {
-    console.log('Function called: setupLanguageSwitcher()');
-    document.querySelectorAll('.lang-option').forEach(option => {
-        option.addEventListener('click', () => {
-            const lang = option.dataset.lang;
-            console.log(`Language option clicked: ${lang}`);
-            setLanguage(lang);
-            updateModePicker(); // Update mode picker with new language
-        });
-    });
-    console.log('Language switcher event listeners added');
-}
-
-// Update the setLanguage function to also update the mode picker
-function setLanguage(lang) {
-    console.log(`Function called: setLanguage(${lang})`);
-    currentLang = lang;
-    document.querySelectorAll('.translatable').forEach(element => {
-        const key = element.dataset.key;
-        if (key && translations[lang][key]) {
-            element.textContent = translations[lang][key];
-        }
-    });
-
-    document.querySelectorAll('.lang-option').forEach(option => {
-        option.classList.toggle('active', option.dataset.lang === lang);
-    });
+/**
+ * Position a picker element properly for the current screen size
+ */
+function positionPicker(pickerElement, targetElement, isModePicker = false) {
+  if (!pickerElement || !targetElement) return;
+  
+  const targetRect = targetElement.getBoundingClientRect();
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+  
+  // Make picker visible but hidden to measure dimensions
+  pickerElement.style.visibility = 'hidden';
+  pickerElement.style.display = isModePicker ? 'flex' : 'block';
+  
+  // Get picker dimensions
+  const pickerRect = pickerElement.getBoundingClientRect();
+  
+  // Reset visibility
+  pickerElement.style.visibility = '';
+  
+  if (isModePicker) {
+    // Center the mode picker
+    pickerElement.style.top = '50%';
+    pickerElement.style.left = '50%';
+    pickerElement.style.transform = 'translate(-50%, -50%)';
+  } else {
+    // Position color picker above the target
+    const targetCenter = targetRect.left + (targetRect.width / 2);
     
-    console.log('Updating mode picker with new language');
-    // Update mode picker with new language
-    updateModePicker();
-    console.log(`Language set to: ${lang}`);
-}
-
-
-// Update showModePicker function
-function showModePicker(button) {
-    console.log('Function called: showModePicker()');
-    // Make sure modePicker is visible for calculating dimensions
-    modePicker.classList.remove("hidden");
-    console.log('Mode picker made visible for positioning');
+    // Calculate positions
+    const triangleHeight = 10;
+    const spacing = 5;
     
-    // Ensure the mode picker is updated with current language and selection
-    updateModePicker();
+    // Check if there's enough space above
+    const spaceAbove = targetRect.top;
+    const pickerHeight = pickerRect.height;
     
-    const rect = button.getBoundingClientRect();
-    console.log('Button position:', rect);
-    
-    // Position picker above button
-    modePicker.style.position = "absolute";
-    modePicker.style.left = rect.left + window.pageXOffset + (rect.width/2 - modePicker.offsetWidth/2) + "px";
-    
-    // Account for the triangle height (10px) and add a small gap (5px)
-    const triangleHeight = 15; // Height of triangle + small gap
-    modePicker.style.top = rect.top + window.pageYOffset - modePicker.offsetHeight - triangleHeight + "px";
-    modePicker.style.zIndex = "1000";
-    console.log('Mode picker positioned above button');
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM fully loaded, initializing game...');
-    setLanguage(currentLang);
-    addModeCss();
-    setupLanguageSwitcher();
-
-    const colors = ["#FF0000", "#FFFF00", "#FFC000", "#F36DED", "#0070C0", "#00B050", "#A6A6A6", "#000000"];
-    let secretCode = [];
-    let currentRow = 1;
-    let currentGuess = [null, null, null, null];
-    let isCodemakerTurn = true;
-    const maxRows = 10;
-
-    const board = document.getElementById("board");
-    const guessArea = document.getElementById("guess-area");
-    const colorPicker = document.getElementById("color-picker"); // Corrected ID
-    const modePicker = document.getElementById("modepicker");
-    const codemakerLabel = document.getElementById("codemaker-label");
-    const codebreakerLabel = document.getElementById("codebreaker-label");
-    const newGameBtn = document.getElementById("new-gamebtn");
-    const submitBtn = document.getElementById("submitbtn");
-    let modeBtn = document.getElementById("mode-btn");
-    let checkButton = null;
-
-    console.log('Game elements initialized');
-    console.log('Current game state:', {
-        currentLang,
-        currentMode,
-        isCodemakerTurn,
-        currentRow
-    });
-
-    // Insert Mode button between Codemaker and Codebreaker labels
-    if (!modeBtn) {
-        console.log('Mode button not found, creating new one');
-        const newModeBtn = document.createElement("button");
-        newModeBtn.id = "mode-btn";
-        newModeBtn.classList.add("translatable");
-        newModeBtn.dataset.key = "mode";
-        newModeBtn.textContent = translations[currentLang].mode;
-        newModeBtn.addEventListener("click", function(event) {
-            console.log('Mode button clicked');
-            // Prevent the default button behavior
-            event.stopPropagation();
-            
-            // First make sure the modePicker is visible (not hidden) so we can get its dimensions
-            modePicker.classList.remove("hidden");
-            console.log('Mode picker made visible after button click');
-            
-            // Get the button's position
-            const rect = this.getBoundingClientRect();
-            console.log('Mode button position:', rect);
-            
-            // Position the picker above the button
-            // Add page scroll offsets to ensure correct positioning
-            modePicker.style.position = "absolute";
-            modePicker.style.left = rect.left + window.pageXOffset + (rect.width/2 - modePicker.offsetWidth/2) + "px";
-            modePicker.style.top = rect.top + window.pageYOffset - modePicker.offsetHeight - 10 + "px"; // 10px gap
-            modePicker.style.zIndex = "1000";
-            console.log('Mode picker positioned above mode button');
-        });
-        const rolesDiv = document.querySelector(".roles");
-        rolesDiv.insertBefore(newModeBtn, codebreakerLabel); // Insert between labels
-        console.log('New mode button inserted into DOM');
+    if (spaceAbove < pickerHeight + triangleHeight + spacing) {
+      // Not enough space above, position below
+      pickerElement.style.top = `${targetRect.bottom + triangleHeight + spacing}px`;
+      
+      // Adjust triangle to point upward
+      const triangle = pickerElement.querySelector('.triangle');
+      if (triangle) {
+        triangle.style.top = '-10px';
+        triangle.style.bottom = 'auto';
+        triangle.style.borderTop = 'none';
+        triangle.style.borderBottom = '10px solid #DAE3F3';
+      }
     } else {
-        console.log('Mode button found, adding event listener');
-        modeBtn.addEventListener("click", function(event) {
-            console.log('Mode button clicked');
-            // Prevent the default button behavior
-            event.stopPropagation();
-            
-            // First make sure the modePicker is visible (not hidden) so we can get its dimensions
-            modePicker.classList.remove("hidden");
-            console.log('Mode picker made visible after button click');
-            
-            // Get the button's position
-            const rect = this.getBoundingClientRect();
-            console.log('Mode button position:', rect);
-            
-            // Position the picker above the button
-            // Add page scroll offsets to ensure correct positioning
-            modePicker.style.position = "absolute";
-            modePicker.style.left = rect.left + window.pageXOffset + (rect.width/2 - modePicker.offsetWidth/2) + "px";
-            modePicker.style.top = rect.top + window.pageYOffset - modePicker.offsetHeight - 10 + "px"; // 10px gap
-            modePicker.style.zIndex = "1000";
-            console.log('Mode picker positioned above mode button');
-        });
-    }
-
-    // Also add a click event listener to the document to close the modePicker when clicking outside
-    document.addEventListener('click', function(event) {
-        if (!modePicker.contains(event.target) && 
-            !event.target.id === 'mode-btn' && 
-            !modePicker.classList.contains('hidden')) {
-            console.log('Click outside mode picker detected, hiding picker');
-            modePicker.classList.add("hidden");
-        }
-    });
-
-    // Language switcher
-    document.querySelectorAll('.lang-option').forEach(option => {
-        option.addEventListener('click', () => {
-            const lang = option.dataset.lang;
-            console.log(`Language option clicked: ${lang}`);
-            setLanguage(lang);
-        });
-    });
-
-    // Mode picker options
-    document.querySelectorAll('.mode-option').forEach(option => {
-        option.addEventListener('click', () => {
-            console.log(`Mode option clicked: ${option.dataset.mode}`);
-            currentMode = option.dataset.mode;
-            modePicker.classList.add("hidden");
-            initGame();
-        });
-    });
-
-
-    function initGame() {
-		console.log('Function called: initGame()');
-		console.log('Current game mode:', currentMode);
-		
-		board.innerHTML = "";
-		guessArea.innerHTML = "";
-		secretCode = [];
-		currentRow = 1;
-		currentGuess = [null, null, null, null];
-		isCodemakerTurn = true;
-		gameOver = false; // Reset game over state
-		
-		// Set up UI for the different modes
-		if (currentMode === 'codebreakerMode') {
-			console.log('Setting up codebreakerMode');
-			isCodemakerTurn = false; // Force codebreaker turn since computer creates the code
-			codemakerLabel.classList.remove("active");
-			codebreakerLabel.classList.add("active");
-		} else {
-			// Default behavior for 'both' and 'codemakerMode'
-			codemakerLabel.classList.add("active");
-			codebreakerLabel.classList.remove("active");
-		}
-		
-		submitBtn.setAttribute("disabled", "true");
-		submitBtn.classList.remove("active");
-		
-		console.log('Game state reset');
-		console.log('Building game board with rows:', maxRows);
-
-		for (let row = maxRows; row >= 1; row--) {
-			const rowDiv = document.createElement("div");
-			rowDiv.className = "row";
-			rowDiv.innerHTML = `
-				<span class="row-number">${row}</span>
-				<span class="colors-feedback"></span>
-				<div class="circles" data-row="${row}"></div>
-				<span class="position-feedback"></span>
-			`;
-			const circlesDiv = rowDiv.querySelector(".circles");
-			for (let col = 0; col < 4; col++) {
-				const circle = document.createElement("div");
-				circle.className = "circle";
-				circle.dataset.row = row;
-				circle.dataset.col = col;
-				circle.addEventListener("click", () => onCircleClick(row, col));
-				circlesDiv.appendChild(circle);
-			}
-			board.appendChild(rowDiv);
-		}
-		console.log('Game board created with all rows');
-
-		console.log('Creating guess area circles');
-		for (let col = 0; col < 4; col++) {
-			const circle = document.createElement("div");
-			circle.className = "circle";
-			circle.dataset.col = col;
-			circle.addEventListener("click", () => onGuessCircleClick(col));
-			guessArea.appendChild(circle);
-		}
-		console.log('Guess area circles created');
-
-		initializeButtons();
-		
-		// Handle computer code creation in codebreakerMode
-		if (currentMode === 'codebreakerMode') {
-			generateComputerCode();
-			
-			// Display message to user
-			showFindCodeMessage();
-		}
-	}
-
-	// Function to generate a random code for the computer
-	function generateComputerCode() {
-		console.log('Function called: generateComputerCode()');
-		const colors = ["#FF0000", "#FFFF00", "#FFC000", "#F36DED", "#0070C0", "#00B050", "#A6A6A6", "#000000"];
-		
-		// Generate 4 random colors for the secret code
-		for (let i = 0; i < 4; i++) {
-			const randomIndex = Math.floor(Math.random() * colors.length);
-			secretCode[i] = colors[randomIndex];
-		}
-		
-		console.log('Computer generated secret code:', secretCode);
-		
-		// Update game state to codebreaker turn
-		isCodemakerTurn = false;
-		
-		// Add check button for the first row
-		addCheckButton();
-	}
-
-	// Function to show the message to find the code
-	function showFindCodeMessage() {
-		console.log('Function called: showFindCodeMessage()');
-		
-		// Create a message element if it doesn't exist
-		let messageElement = document.getElementById('find-code-message');
-		if (!messageElement) {
-			messageElement = document.createElement('div');
-			messageElement.id = 'find-code-message';
-			messageElement.className = 'find-code-message';
-			messageElement.style.textAlign = 'center';
-			messageElement.style.margin = '10px 0';
-			messageElement.style.padding = '8px';
-			messageElement.style.backgroundColor = '#f0f0f0';
-			messageElement.style.borderRadius = '4px';
-			messageElement.style.fontWeight = 'bold';
-			
-			// Insert before the board
-			const boardParent = board.parentNode;
-			boardParent.insertBefore(messageElement, board);
-		}
-		
-		// Set the message text based on current language
-		messageElement.textContent = translations[currentLang].findCode;
-		console.log('Find code message displayed');
-	}
-
-	function onCircleClick(row, col) {
-		console.log(`Function called: onCircleClick(${row}, ${col})`);
-		console.log('Current state:', {
-			currentMode,
-			isCodemakerTurn,
-			currentRow,
-			gameOver
-		});
-		
-		// Ignore clicks if game is over
-		if (gameOver) {
-			console.log('Game is over, ignoring circle click');
-			return;
-		}
-        
-        // Show color picker for codebreaker turn in 'both' mode or in 'codebreakerMode'
-        if ((currentMode === 'both' && !isCodemakerTurn && row === currentRow) ||
-            (currentMode === 'codebreakerMode' && row === currentRow)) {
-            console.log('Valid circle click for codebreaker, showing color picker');
-            showColorPicker(row, col, false);
-            
-            // Add check button when clicking on a codebreaker row
-            // Only add if it doesn't exist yet for this row
-            if (!checkButton || parseInt(checkButton.dataset.row) !== row) {
-                console.log('Adding check button for this row');
-                addCheckButton();
-            }
-        } else {
-            console.log('Circle click ignored: not allowed in current game state');
-        }
-    }
-
-    function onGuessCircleClick(col) {
-        console.log(`Function called: onGuessCircleClick(${col})`);
-        console.log('Current state:', {
-            currentMode,
-            isCodemakerTurn
-        });
-        
-        // Show color picker for codemaker turn in 'both' mode or in 'codemakerMode'
-        if ((currentMode === 'both' && isCodemakerTurn) || currentMode === 'codemakerMode') {
-            console.log('Valid circle click for codemaker, showing color picker');
-            showColorPicker(0, col, true);
-        } else {
-            console.log('Guess circle click ignored: not allowed in current game state');
-        }
-    }
-
-    // Updated showColorPicker function
-    function showColorPicker(row, col, isGuess) {
-        console.log(`Function called: showColorPicker(${row}, ${col}, ${isGuess})`);
-        
-        colorPicker.classList.remove("hidden");
-        const circle = isGuess
-            ? guessArea.children[col]
-            : board.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-            
-        console.log('Target circle found:', circle);
-        
-        const rect = circle.getBoundingClientRect();
-        console.log('Circle position:', rect);
-        
-        // Force the color picker to be visible to get its dimensions
-        colorPicker.style.visibility = 'hidden';
-        colorPicker.style.display = 'flex';
-        
-        // Get the actual dimensions after making it visible
-        const pickerRect = colorPicker.getBoundingClientRect();
-        const pickerWidth = pickerRect.width || 240;
-        const pickerHeight = pickerRect.height || 130;
-        console.log('Color picker dimensions:', { width: pickerWidth, height: pickerHeight });
-        
-        // Reset visibility
-        colorPicker.style.visibility = '';
-        
-        // Calculate center position for the circle
-        const circleCenter = rect.left + (rect.width / 2);
-        
-        // Position the picker so the triangle points to the circle's center
-        colorPicker.style.left = `${circleCenter - (pickerWidth / 2) + window.scrollX}px`;
-        
-        // Position the picker above the circle with enough space
-        const triangleHeight = 10; // Height of the triangle
-        const spacing = 5; // Additional spacing
-        colorPicker.style.top = `${rect.top - pickerHeight - triangleHeight - spacing + window.scrollY}px`;
-        
-        // Make sure the triangle is centered
-        const triangle = colorPicker.querySelector('.triangle');
-        if (triangle) {
-            triangle.style.left = '50%';
-            triangle.style.transform = 'translateX(-50%)';
-        }
-        
-        colorPicker.style.zIndex = "1000";
-        console.log('Color picker positioned and displayed');
-
-        // Clear previous event listeners (to prevent duplicates)
-        const colorOptions = document.querySelectorAll(".color-option");
-        colorOptions.forEach(option => {
-            // Clone and replace to remove old event listeners
-            const newOption = option.cloneNode(true);
-            option.parentNode.replaceChild(newOption, option);
-        });
-        console.log('Previous color option event listeners cleared');
-
-        // Add fresh click listeners to color options
-        document.querySelectorAll(".color-option").forEach(option => {
-            option.onclick = () => selectColor(row, col, option.style.backgroundColor, isGuess);
-        });
-        console.log('New color option event listeners added');
-    }
-
-	function selectColor(row, col, color, isGuess) {
-		console.log(`Function called: selectColor(${row}, ${col}, ${color}, ${isGuess})`);
-		
-		if (isGuess) {
-			console.log('Setting color for codemaker (guess area)');
-			// This is for the codemaker (guessArea)
-			guessArea.children[col].style.backgroundColor = color;
-			currentGuess[col] = color;
-			console.log('Current guess updated:', currentGuess);
-			
-			// Enable submit button if all codemaker circles are filled
-			if (currentGuess.every(c => c !== null)) {
-				console.log('All guess circles filled, enabling submit button');
-				submitBtn.removeAttribute("disabled");
-				submitBtn.classList.add("active");
-			}
-		} else {
-			console.log('Setting color for codebreaker (board row)');
-			// This is for the codebreaker (board rows)
-			const circle = board.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-			circle.style.backgroundColor = color;
-			
-			// In codebreaker mode, make sure currentGuess is updated correctly
-			// Find all circles in the current row and get their colors
-			const currentRowCircles = Array.from(board.querySelectorAll(`.circles[data-row="${row}"] .circle`));
-			currentGuess = currentRowCircles.map(circle => circle.style.backgroundColor);
-			
-			console.log('Current guess updated from all circles:', currentGuess);
-			
-			// Enable check button if all circles in this row are filled
-			const allFilled = currentGuess.every(c => c && c !== '');
-			if (allFilled && checkButton) {
-				console.log('All row circles filled, enabling check button');
-				checkButton.disabled = false;
-				checkButton.removeAttribute("disabled");
-				checkButton.classList.remove("disabled");
-				checkButton.classList.add("active");
-			}
-		}
-		
-		hideColorPicker();
-	}
-
-    // New function to properly hide the color picker
-    function hideColorPicker() {
-        console.log('Function called: hideColorPicker()');
-        
-        // Add the hidden class
-        colorPicker.classList.add("hidden");
-        
-        // Reset any inline styles that might override the hidden class
-        colorPicker.style.display = '';
-        colorPicker.style.visibility = '';
-        
-        console.log('Color picker hidden');
-    }
-
-    // Also add a click event listener to the document to close picker when clicking outside
-    document.addEventListener('click', function(event) {
-        // If click is outside the color picker and the picker is visible
-        if (!colorPicker.contains(event.target) && 
-            !event.target.classList.contains('circle') && 
-            !colorPicker.classList.contains('hidden')) {
-            console.log('Click outside color picker detected, hiding picker');
-            hideColorPicker();
-        }
-    });
-
-    function submitCode() {
-        console.log('Function called: submitCode()');
-        console.log("isCodemakerTurn=", isCodemakerTurn);
-        console.log("currentMode=", currentMode);
-        
-        if ((currentMode === 'both' || currentMode === 'codemakerMode') && isCodemakerTurn) {
-            console.log('Valid codemaker submission, setting secret code');
-            secretCode = [...currentGuess];
-            console.log('Secret code set:', secretCode);
-            
-            currentGuess = [null, null, null, null]; // Reset the current guess
-            isCodemakerTurn = false;
-            codemakerLabel.classList.remove("active");
-            codebreakerLabel.classList.add("active");
-            
-            submitBtn.disabled = false;
-            submitBtn.removeAttribute("disabled");
-            submitBtn.classList.add("active");
-            console.log('Game state changed to codebreaker turn');
-            
-            // DIRECT REPLACEMENT - Remove the entire loop and use a completely different approach
-            console.log('Replacing guess area circles');
-            // Create brand new circles to replace the existing ones
-            while (guessArea.firstChild) {
-                guessArea.removeChild(guessArea.firstChild);
-            }
-            
-            // Recreate the circles from scratch
-            for (let col = 0; col < 4; col++) {
-                const circle = document.createElement("div");
-                circle.className = "circle";
-                circle.dataset.col = col;
-                circle.style.backgroundColor = ""; // Reset to default
-                circle.style.backgroundColor = "white"; // Then set to white
-                circle.addEventListener("click", () => onGuessCircleClick(col));
-                guessArea.appendChild(circle);
-            }
-        
-            // Log to verify
-            console.log("Guess area children count:", guessArea.children.length);
-            Array.from(guessArea.children).forEach((c, i) => {
-                console.log(`New circle ${i} bg color:`, c.style.backgroundColor);
-            });
-            
-            if (currentMode === 'both') {
-                console.log('In "both" mode, updating button for GIVE UP functionality');
-                // Update button for "GIVE UP" functionality
-                submitBtn.textContent = translations[currentLang].giveUp;
-                submitBtn.addEventListener("click", revealCode);
-
-                // Add check button for the first row
-                addCheckButton();
-            } 
-            else if (currentMode === 'codemakerMode') {
-                console.log('In "codemakerMode", handling computer guess logic');
-                // Handle computer guess logic
-                computerGuess();
-            }
-        } else {
-            console.log('submitCode called but conditions not met');
-            if (currentMode === 'codebreakerMode') {
-                console.log('In "codebreakerMode" mode, no action needed');
-                // Add logic for codebreaker-only mode if needed
-            }
-        }
+      // Position above
+      pickerElement.style.top = `${targetRect.top - pickerHeight - triangleHeight - spacing}px`;
+      
+      // Reset triangle to point downward
+      const triangle = pickerElement.querySelector('.triangle');
+      if (triangle) {
+        triangle.style.top = 'auto';
+        triangle.style.bottom = '-10px';
+        triangle.style.borderTop = '10px solid #DAE3F3';
+        triangle.style.borderBottom = 'none';
+      }
     }
     
-	function computerGuess() {
-		console.log('Function called: computerGuess()');
-		gameOver = false;
-		currentRow = 1;
-		
-		const guessDelay = 1500; // Delay between guesses for visual effect
-		const colors = ["#FF0000", "#FFFF00", "#FFC000", "#F36DED", "#0070C0", "#00B050", "#A6A6A6", "#000000"];
-		let possibleCodes = [];
-		
-		// Color conversion and normalization functions
-		function normalizeColor(color) {
-			if (!color) return null;
-			if (color.startsWith('#')) {
-				const r = parseInt(color.slice(1, 3), 16);
-				const g = parseInt(color.slice(3, 5), 16);
-				const b = parseInt(color.slice(5, 7), 16);
-				return `rgb(${r},${g},${b})`;
-			}
-			if (color.startsWith('rgb')) {
-				const rgbValues = color.match(/\d+/g);
-				if (rgbValues && rgbValues.length >= 3) {
-					return `rgb(${rgbValues[0]},${rgbValues[1]},${rgbValues[2]})`;
-				}
-			}
-			return color.toLowerCase().trim();
-		}
-		
-		function indicesToColors(indices) {
-			return indices.map(index => colors[index]);
-		}
-		
-		function colorsToIndices(colorArray) {
-			return colorArray.map(color => {
-				const normalizedColor = normalizeColor(color);
-				for (let i = 0; i < colors.length; i++) {
-					if (normalizeColor(colors[i]) === normalizedColor) {
-						return i;
-					}
-				}
-				return 0;
-			});
-		}
-		
-		// Generate all possible codes (using indices for efficiency)
-		for (let i = 0; i < colors.length; i++) {
-			for (let j = 0; j < colors.length; j++) {
-				for (let k = 0; k < colors.length; k++) {
-					for (let l = 0; l < colors.length; l++) {
-						possibleCodes.push([i, j, k, l]);
-					}
-				}
-			}
-		}
-		console.log(`Generated ${possibleCodes.length} possible codes`);
-		
-		// Start with Knuth's recommended first guess: 1122
-		let currentGuessIndices = [0, 0, 1, 1]; // Equivalent to "1122"
-		let currentGuess = indicesToColors(currentGuessIndices);
-		
-		// Evaluate a guess (using indices)
-		function evaluateGuess(secretIndices, guessIndices) {
-			let correctPositions = 0;
-			let correctColors = 0;
-			const secretCopy = [...secretIndices];
-			const guessCopy = [...guessIndices];
-			
-			// Check correct positions
-			for (let i = 0; i < 4; i++) {
-				if (guessCopy[i] === secretCopy[i]) {
-					correctPositions++;
-					secretCopy[i] = -1;
-					guessCopy[i] = -2;
-				}
-			}
-			
-			// Check correct colors in wrong positions
-			for (let i = 0; i < 4; i++) {
-				if (guessCopy[i] >= 0) {
-					for (let j = 0; j < 4; j++) {
-						if (secretCopy[j] >= 0 && guessCopy[i] === secretCopy[j]) {
-							correctColors++;
-							secretCopy[j] = -1;
-							break;
-						}
-					}
-				}
-			}
-			
-			return { correctPositions, correctColors };
-		}
-		
-		// Filter codes based on feedback
-		function filterCodes(codes, guessIndices, correctPositions, correctColors) {
-			return codes.filter(codeIndices => {
-				const result = evaluateGuess(codeIndices, guessIndices);
-				return result.correctPositions === correctPositions && 
-					   result.correctColors === correctColors;
-			});
-		}
-		
-		// Choose next guess using minimax (with sampling for efficiency)
-		function chooseNextGuess() {
-			if (possibleCodes.length === 1) return possibleCodes[0];
-			
-			let bestGuess = null;
-			let minMaxScore = Infinity;
-			
-			// Sample candidate codes for efficiency
-			const candidateCodes = possibleCodes.length <= 50 ? 
-				possibleCodes : sampleCodes(possibleCodes, 50);
-			
-			for (const candidate of candidateCodes) {
-				const scoreDistribution = {};
-				
-				// Sample evaluation codes for efficiency
-				const evaluationCodes = possibleCodes.length <= 80 ? 
-					possibleCodes : sampleCodes(possibleCodes, 80);
-				
-				for (const code of evaluationCodes) {
-					const result = evaluateGuess(code, candidate);
-					const key = `${result.correctPositions},${result.correctColors}`;
-					scoreDistribution[key] = (scoreDistribution[key] || 0) + 1;
-				}
-				
-				// Find max score (worst case)
-				let maxScore = Math.max(...Object.values(scoreDistribution));
-				
-				if (maxScore < minMaxScore) {
-					minMaxScore = maxScore;
-					bestGuess = candidate;
-				} else if (maxScore === minMaxScore && possibleCodes.some(c => 
-					c[0] === candidate[0] && c[1] === candidate[1] && 
-					c[2] === candidate[2] && c[3] === candidate[3])) {
-					bestGuess = candidate;
-				}
-			}
-			
-			return bestGuess || possibleCodes[0];
-		}
-		
-		// Sample codes for efficiency
-		function sampleCodes(codes, sampleSize) {
-			if (codes.length <= sampleSize) return [...codes];
-			
-			const sample = [];
-			const codesCopy = [...codes];
-			
-			for (let i = 0; i < sampleSize; i++) {
-				const randomIndex = Math.floor(Math.random() * codesCopy.length);
-				sample.push(codesCopy[randomIndex]);
-				codesCopy.splice(randomIndex, 1);
-			}
-			
-			return sample;
-		}
-		
-		// Display functions
-		function displayComputerGuess(colorGuess, row) {
-			const circles = board.querySelectorAll(`.circles[data-row="${row}"] .circle`);
-			for (let i = 0; i < 4; i++) {
-				circles[i].style.backgroundColor = colorGuess[i];
-			}
-		}
-		
-		function displayFeedback(correctPositions, correctColors, row) {
-			const rowElement = board.querySelector(`.row .circles[data-row="${row}"]`).closest('.row');
-			rowElement.querySelector(".colors-feedback").textContent = correctColors;
-			rowElement.querySelector(".position-feedback").textContent = correctPositions;
-		}
-		
-		// Main guess function
-		function makeGuess() {
-			if (currentRow > maxRows || gameOver) return;
-			
-			// Display the computer's guess
-			displayComputerGuess(currentGuess, currentRow);
-			
-			// Evaluate the guess
-			const secretIndices = colorsToIndices(secretCode);
-			const { correctPositions, correctColors } = evaluateGuess(secretIndices, currentGuessIndices);
-			
-			// Display feedback
-			displayFeedback(correctPositions, correctColors, currentRow);
-			
-			// Check if won
-			if (correctPositions === 4) {
-				setTimeout(() => {
-					alert(`${translations[currentLang].congratulations.replace("Du", "Computer")}\n${currentRow} ${currentLang === 'en' ? 'attempts' : 'Versuche'}`);
-					gameOver = true;
-				}, 500);
-				return;
-			}
-			
-			// Next row
-			currentRow++;
-			
-			// Check if max rows reached
-			if (currentRow > maxRows) {
-				setTimeout(() => {
-					alert(currentLang === 'en' ? 
-						  "Computer couldn't crack the code within the maximum number of attempts." : 
-						  "Der Computer konnte den Code nicht innerhalb der maximalen Anzahl von Versuchen knacken.");
-					gameOver = true;
-					// Show secret code
-					for (let i = 0; i < 4; i++) {
-						guessArea.children[i].style.backgroundColor = secretCode[i];
-					}
-				}, 500);
-				return;
-			}
-			
-			// Filter and choose next guess
-			possibleCodes = filterCodes(possibleCodes, currentGuessIndices, correctPositions, correctColors);
-			console.log(`Remaining possible codes: ${possibleCodes.length}`);
-			currentGuessIndices = chooseNextGuess();
-			currentGuess = indicesToColors(currentGuessIndices);
-			
-			// Schedule next guess
-			setTimeout(makeGuess, guessDelay);
-		}
-		
-		// Start the process
-		setTimeout(makeGuess, guessDelay);
-	}
-
-    function setButtonLabel(button, key) {
-        console.log(`Function called: setButtonLabel(button, ${key})`);
-        if (button && translations[currentLang][key]) {
-            button.textContent = translations[currentLang][key];
-            console.log(`Button label set to: ${translations[currentLang][key]}`);
-        } else {
-            console.log('Button or translation key not found');
-        }
+    // Center horizontally
+    pickerElement.style.left = `${targetCenter - (pickerRect.width / 2)}px`;
+    
+    // Ensure picker stays within viewport horizontally
+    const rightEdge = parseFloat(pickerElement.style.left) + pickerRect.width;
+    const leftEdge = parseFloat(pickerElement.style.left);
+    
+    if (rightEdge > viewportWidth) {
+      pickerElement.style.left = `${viewportWidth - pickerRect.width - 10}px`;
     }
-
-	function revealCode() {
-		console.log('Function called: revealCode()');
-		console.log('Secret code to reveal:', secretCode);
-		
-		// Reveal the secret code
-		for (let i = 0; i < 4; i++) {
-			guessArea.children[i].style.backgroundColor = secretCode[i];
-		}
-		console.log('Secret code revealed in guess area');
-		
-		// Disable the submit button
-		submitBtn.disabled = true;
-		submitBtn.setAttribute("disabled", "true");
-		submitBtn.classList.remove("active");
-		
-		// Remove the check button if it exists
-		if (checkButton) {
-			console.log('Removing check button after give up');
-			checkButton.remove();
-			checkButton = null;
-		}
-		
-		// Set game over state
-		const gameOverState = true;
-		console.log('Game over state set to:', gameOverState);
-		gameOver = true;
-		console.log('Game over state set to:', gameOver);
-		
-		// Optional: Display game over message
-		alert(`Game Over! The code was revealed.`);
-		
-		// Remove click handlers from all circles in the current and future rows
-		for (let row = currentRow; row <= maxRows; row++) {
-			const circles = board.querySelectorAll(`.circles[data-row="${row}"] .circle`);
-			circles.forEach(circle => {
-				// Clone and replace to remove event listeners
-				const newCircle = circle.cloneNode(true);
-				circle.parentNode.replaceChild(newCircle, circle);
-			});
-		}
-		
-		console.log('Game ended after user gave up');
-	}
-
-	function initializeButtons() {
-		console.log('Function called: initializeButtons()');
-		
-		// Make sure the new game button is always active
-		newGameBtn.classList.add("active");
-		
-		// Set the submit button to its initial state
-		submitBtn.textContent = translations[currentLang].submit;
-		console.log(`Submit button label set to: ${translations[currentLang].submit}`);
-		
-		if (currentMode === 'codebreakerMode') {
-			console.log('In codebreakerMode, setting submit button for "give up"');
-			// In codebreaker mode, the submit button is for "give up"
-			submitBtn.textContent = translations[currentLang].giveUp;
-			submitBtn.disabled = false;
-			submitBtn.removeAttribute("disabled");
-			submitBtn.classList.add("active");
-			submitBtn.onclick = function() {
-				revealCode();
-			};
-		} else if (isCodemakerTurn) {
-			console.log('In codemaker turn, setting submit button to disabled initially');
-			// In codemaker turn, button starts disabled until code is complete
-			submitBtn.disabled = true;
-			submitBtn.setAttribute("disabled", "true");
-			submitBtn.classList.remove("active");
-			
-			// Reset the onclick handler to submitCode
-			submitBtn.onclick = submitCode;
-		} else {
-			console.log('In codebreaker turn, setting submit button for "give up"');
-			// In codebreaker mode, the submit button is for "give up"
-			submitBtn.textContent = translations[currentLang].giveUp;
-			submitBtn.disabled = false;
-			submitBtn.removeAttribute("disabled");
-			submitBtn.classList.add("active");
-			submitBtn.onclick = function() {
-				revealCode();
-			};
-		}
-		console.log('Buttons initialized for current game state');
-	}
-	
-
-    function addCheckButton() {
-        console.log(`Function called: addCheckButton() for row ${currentRow}`);
-        
-        if (checkButton) {
-            console.log('Removing existing check button');
-            checkButton.remove();
-        }
-        
-        checkButton = document.createElement("button");
-        checkButton.className = "check-btn translatable";
-        checkButton.dataset.key = "check";
-        checkButton.dataset.row = currentRow; // Track which row this button belongs to
-        checkButton.textContent = translations[currentLang].check;
-        checkButton.disabled = true;
-        checkButton.classList.add("disabled"); // Add disabled class
-        checkButton.onclick = checkGuess;
-        
-        // Find the current row and append the button
-        const row = board.querySelector(`.row .circles[data-row="${currentRow}"]`).closest('.row');
-        if (row) {
-            row.appendChild(checkButton);
-            console.log(`Check button added to row ${currentRow}`);
-        } else {
-            console.log(`Failed to find row ${currentRow} to add check button`);
-        }
+    
+    if (leftEdge < 0) {
+      pickerElement.style.left = '10px';
     }
+  }
+}
 
-	function checkGuess() {
-		console.log('Function called: checkGuess()');
-		console.log('Current guess to check:', currentGuess);
-		console.log('Secret code to compare against:', secretCode);
-		
-		// Get the current row's circles to ensure we have the correct colors
-		const currentRowCircles = Array.from(board.querySelectorAll(`.circles[data-row="${currentRow}"] .circle`));
-		
-		// Make sure currentGuess is updated with the actual circle colors
-		// Use getComputedStyle for more reliable color extraction
-		currentGuess = currentRowCircles.map(circle => {
-			const backgroundColor = window.getComputedStyle(circle).backgroundColor;
-			return backgroundColor || null;
-		});
-		
-		console.log('Updated current guess from DOM:', currentGuess);
-		
-		// Check if all colors are set
-		if (currentGuess.some(color => !color)) {
-			console.warn('Not all colors are selected in the current row');
-			return; // Don't proceed if some colors are missing
-		}
-		
-		const { correctPositions, correctColors } = checkGuessLogic(secretCode, currentGuess);
-		console.log('Check results:', { correctPositions, correctColors });
-		
-		const row = board.querySelector(`.row .circles[data-row="${currentRow}"]`).closest('.row');
-		row.querySelector(".colors-feedback").textContent = correctColors;
-		row.querySelector(".position-feedback").textContent = correctPositions;
-		console.log(`Feedback displayed for row ${currentRow}`);
+/**
+ * Set up language switcher
+ */
+function setupLanguageSwitcher() {
+  debug('Setting up language switcher');
+  document.querySelectorAll('.lang-option').forEach(option => {
+    option.addEventListener('click', () => {
+      const lang = option.dataset.lang;
+      setLanguage(lang);
+    });
+  });
+}
 
-		// Reset current guess for next row
-		currentGuess = [null, null, null, null];
-		console.log('Current guess reset');
-		
-		// Disable the check button
-		checkButton.setAttribute("disabled", "true");
-		checkButton.disabled = true;
-		checkButton.classList.remove("active");
-		console.log('Check button disabled');
-		
-		currentRow++;
-		console.log(`Current row advanced to ${currentRow}`);
-		
-		if (currentRow <= maxRows) {
-			console.log(`Row ${currentRow} is within maximum rows, adding new check button`);
-			addCheckButton();
-		} else {
-			console.log('Maximum rows reached, game over');
-			for (let i = 0; i < 4; i++) {
-				guessArea.children[i].style.backgroundColor = secretCode[i];
-			}
-			console.log('Secret code revealed in guess area');
-			alert(`Game Over! You didn't find the code.`);
-			submitBtn.setAttribute("disabled", "true");
-			if (checkButton) checkButton.disabled = true;
-			gameOver = true;
-			console.log('Game buttons disabled after max rows reached');
-		}
-		
-		if (correctPositions === 4) {
-			console.log('All positions correct! Game won');
-			alert(translations[currentLang].congratulations);
-			submitBtn.setAttribute("disabled", "true");
-			if (checkButton) checkButton.disabled = true;
-			gameOver = true;
-			console.log('Game buttons disabled after win');
-		}
-	}
+/**
+ * Set the current language
+ */
+function setLanguage(lang) {
+  debug(`Setting language to: ${lang}`);
+  currentLang = lang;
+  
+  document.querySelectorAll('.translatable').forEach(element => {
+    const key = element.dataset.key;
+    if (key && translations[lang][key]) {
+      element.textContent = translations[lang][key];
+    }
+  });
 
-	function checkGuessLogic(secret, guess) {
-		console.log('Function called: checkGuessLogic()');
-		console.log('Checking secret:', secret, 'against guess:', guess);
-		
-		let correctPositions = 0;
-		let correctColors = 0;
-		
-		if (!secret || !guess || secret.length !== 4 || guess.length !== 4) {
-			console.error('Invalid secret or guess:', { secret, guess });
-			return { correctPositions: 0, correctColors: 0 };
-		}
-		
-		// Create copies of the arrays to avoid modifying the originals
-		const secretTemp = [...secret];
-		const guessTemp = [...guess];
-		
-		// Improved color normalization function
-		function normalizeColor(color) {
-			if (!color) return null;
-			
-			// If empty, return null
-			if (color === '') return null;
-			
-			// If already in hex format (#RRGGBB)
-			if (color.startsWith('#')) {
-				// Convert hex to RGB values for consistent comparison
-				const r = parseInt(color.slice(1, 3), 16);
-				const g = parseInt(color.slice(3, 5), 16);
-				const b = parseInt(color.slice(5, 7), 16);
-				return `rgb(${r},${g},${b})`;
-			}
-			
-			// If in rgb format, standardize it
-			if (color.startsWith('rgb')) {
-				// Extract RGB values using regex to be more robust
-				const rgbValues = color.match(/\d+/g);
-				if (rgbValues && rgbValues.length >= 3) {
-					return `rgb(${rgbValues[0]},${rgbValues[1]},${rgbValues[2]})`;
-				}
-			}
-			
-			return color.toLowerCase().trim();
-		}
-		
-		// Normalize all colors for comparison
-		const normalizedSecret = secretTemp.map(normalizeColor);
-		const normalizedGuess = guessTemp.map(normalizeColor);
-		
-		console.log('Normalized secret:', normalizedSecret);
-		console.log('Normalized guess:', normalizedGuess);
-		
-		// Create working copies for our algorithm
-		const secretCopy = [...normalizedSecret];
-		const guessCopy = [...normalizedGuess];
-		
-		// First pass: check for correct positions
-		for (let i = 0; i < 4; i++) {
-			if (guessCopy[i] === secretCopy[i]) {
-				console.log(`Position ${i} correct! Color: ${guessCopy[i]}`);
-				correctPositions++;
-				// Mark as counted by setting to special value
-				secretCopy[i] = null;
-				guessCopy[i] = null;
-			}
-		}
-		
-		// Second pass: check for correct colors in wrong positions
-		for (let i = 0; i < 4; i++) {
-			if (guessCopy[i] !== null) {
-				for (let j = 0; j < 4; j++) {
-					if (secretCopy[j] !== null && guessCopy[i] === secretCopy[j]) {
-						console.log(`Color ${guessCopy[i]} is in the code but wrong position`);
-						correctColors++;
-						// Mark as counted
-						secretCopy[j] = null;
-						guessCopy[i] = null;
-						break;
-					}
-				}
-			}
-		}
-		
-		console.log('Check result:', { correctPositions, correctColors });
-		return { correctPositions, correctColors };
-	}
+  document.querySelectorAll('.lang-option').forEach(option => {
+    option.classList.toggle('active', option.dataset.lang === lang);
+  });
+  
+  updateModePicker();
+  colorizeHeading();
+}
 
-    newGameBtn.addEventListener("click", initGame);
-    submitBtn.addEventListener("click", submitCode);
+/**
+ * Update mode picker with current options and language
+ */
+function updateModePicker() {
+  debug('Updating mode picker');
+  
+  // Clear existing options
+  modePicker.innerHTML = '';
+  
+  // Create new options with correct translations
+  const modeOptions = [
+    { mode: GAME_MODES.BOTH, key: 'both' },
+    { mode: GAME_MODES.CODEMAKER, key: 'codemakerMode' },
+    { mode: GAME_MODES.CODEBREAKER, key: 'codebreakerMode' }
+  ];
+  
+  // Add mode options
+  modeOptions.forEach(option => {
+    const div = document.createElement('div');
+    div.className = 'mode-option';
+    div.dataset.mode = option.mode;
+    div.textContent = translations[currentLang][option.key];
+    
+    // Add selected class if this is the current mode
+    if (option.mode === currentMode) {
+      div.classList.add('selected');
+    }
+    
+    div.addEventListener('click', function(event) {
+      // Get the selected mode from the clicked option
+      const selectedMode = this.dataset.mode;
+      
+      // Update the mode
+      currentMode = selectedMode;
+      
+      // Update selection visual
+      document.querySelectorAll('.mode-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.mode === currentMode);
+      });
+      
+      // Hide the mode picker
+      modePicker.classList.add("hidden");
+      modePicker.style.display = 'none';
+      
+      // Start new game
+      initGame();
+      
+      // Prevent event bubbling
+      event.stopPropagation();
+    });
+    
+    modePicker.appendChild(div);
+  });
+  
+  // Add separator line
+  const separator = document.createElement('hr');
+  separator.className = 'mode-separator';
+  modePicker.appendChild(separator);
+  
+  // Add circle length selector
+  const circlesContainer = document.createElement('div');
+  circlesContainer.className = 'circles-selector';
+  
+  // Add label
+  const circlesLabel = document.createElement('span');
+  circlesLabel.className = 'circles-label';
+  circlesLabel.textContent = translations[currentLang].circles + ':';
+  circlesContainer.appendChild(circlesLabel);
+  
+  // Add space
+  circlesContainer.appendChild(document.createTextNode(' '));
+  
+  // Add circle length options
+  const circleLengths = [4, 5];
+  circleLengths.forEach((length, index) => {
+    const option = document.createElement('span');
+    option.className = 'circle-length-option';
+    option.dataset.length = length;
+    option.textContent = length;
+    
+    // Add selected class if this is the current length
+    if (length === CODE_LENGTH) {
+      option.classList.add('selected');
+    }
+    
+    option.addEventListener('click', function(event) {
+      // Get the selected length
+      const selectedLength = parseInt(this.dataset.length);
+      
+      // Update CODE_LENGTH
+      CODE_LENGTH = selectedLength;
+      
+      // Update selection visual
+      document.querySelectorAll('.circle-length-option').forEach(opt => {
+        opt.classList.toggle('selected', parseInt(opt.dataset.length) === CODE_LENGTH);
+      });
+      
+      // Prevent event bubbling
+      event.stopPropagation();
+    });
+    
+    circlesContainer.appendChild(option);
+    
+    // Add separator between options (but not after the last one)
+    if (index < circleLengths.length - 1) {
+      const separator = document.createElement('span');
+      separator.className = 'circle-length-separator';
+      separator.textContent = ' | ';
+      circlesContainer.appendChild(separator);
+    }
+  });
+  
+  modePicker.appendChild(circlesContainer);
+}
 
-    initGame();
-    console.log('Game initialized successfully');
+/**
+ * Colorize the heading text
+ */
+function colorizeHeading() {
+  debug('Colorizing heading');
+  const heading = document.querySelector('h1');
+  if (!heading) return;
+  
+  const text = heading.textContent;
+  const colors = [
+    "#FF0000", // Red
+    "#FFC000", // Orange/Gold
+    "#F36DED", // Pink
+    "#0070C0", // Blue
+    "#00B050", // Green
+    "#A6A6A6", // Gray
+    "#000000"  // Black
+  ];
+  
+  // Create spans for each character with alternating colors
+  let coloredText = '';
+  for (let i = 0; i < text.length; i++) {
+    const color = colors[i % colors.length];
+    coloredText += `<span style="color: ${color}">${text[i]}</span>`;
+  }
+  
+  heading.innerHTML = coloredText;
+}
+
+/**
+ * Add CSS for mode options
+ */
+function addModeCss() {
+  debug('Adding mode CSS');
+  const existingStyle = document.getElementById('mode-option-styles');
+  if (existingStyle) {
+    existingStyle.remove();
+  }
+  
+  const styleElement = document.createElement('style');
+  styleElement.id = 'mode-option-styles';
+  styleElement.textContent = `
+    .mode-option {
+      cursor: pointer;
+      padding: 5px 10px;
+      margin: 5px 0;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+      color: #888; /* Grey text for non-selected options */
+      font-weight: normal;
+    }
+    
+    .mode-option:hover {
+      background-color: #e0e0e0;
+    }
+    
+    .mode-option.selected {
+      color: #000; /* Black text for selected option */
+      font-weight: bold;
+    }
+    
+    #modepicker {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #DAE3F3;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      width: 240px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    /* Remove triangle pseudo-elements */
+    #modepicker:after, #modepicker:before {
+      display: none;
+    }
+  `;
+  document.head.appendChild(styleElement);
+}
+
+/**
+ * Show the find code message
+ */
+function showFindCodeMessage() {
+  debug('Showing find code message');
+  // Always remove any existing message first
+  removeFindCodeMessage();
+  
+  // Only proceed to create the message if we're explicitly in codebreakerMode
+  if (currentMode !== GAME_MODES.CODEBREAKER) {
+    return;
+  }
+  
+  // Create message container and element
+  const messageContainer = document.createElement('div');
+  messageContainer.className = 'message-container';
+  messageContainer.id = 'find-code-message-container';
+  
+  const messageElement = document.createElement('div');
+  messageElement.id = 'find-code-message';
+  messageElement.className = 'find-code-message';
+  messageElement.textContent = translations[currentLang].findCode;
+  
+  messageContainer.appendChild(messageElement);
+  
+  // Insert directly above the game board
+  const labels = document.querySelectorAll('.translatable');
+  let colorLabel = null;
+  
+  // Find the color label element
+  for (const label of labels) {
+    if (label.dataset.key === 'colours') {
+      colorLabel = label;
+      break;
+    }
+  }
+  
+  if (colorLabel) {
+    // Find the parent container that holds the labels
+    const labelContainer = colorLabel.closest('div') || colorLabel.parentNode;
+    
+    // Insert the message above this container
+    if (labelContainer && labelContainer.parentNode) {
+      labelContainer.parentNode.insertBefore(messageContainer, labelContainer);
+    } else {
+      // Fallback to original implementation
+      const boardParent = board.parentNode;
+      boardParent.insertBefore(messageContainer, board);
+    }
+  } else {
+    // Fallback to original implementation
+    const boardParent = board.parentNode;
+    boardParent.insertBefore(messageContainer, board);
+  }
+  
+  // Ensure CSS exists for the message
+  ensureFindCodeMessageCSS();
+}
+
+/**
+ * Remove the find code message
+ */
+function removeFindCodeMessage() {
+  debug('Removing find code message');
+  const messageContainer = document.getElementById('find-code-message-container');
+  if (messageContainer) {
+    messageContainer.remove();
+  }
+}
+
+/**
+ * Ensure the find code message CSS exists
+ */
+function ensureFindCodeMessageCSS() {
+  if (document.getElementById('find-code-message-styles')) {
+    return; // CSS already exists
+  }
+  
+  const style = document.createElement('style');
+  style.id = 'find-code-message-styles';
+  style.textContent = `
+    .message-container {
+      display: grid;
+      grid-template-columns: 40px 40px 240px 80px; /* Match the main grid layout */
+      width: 100%;
+    }
+    
+    @media (max-width: 500px) {
+      .message-container {
+        grid-template-columns: 30px 30px 200px 70px;
+      }
+    }
+    
+    @media (max-width: 400px) {
+      .message-container {
+        grid-template-columns: 25px 25px 160px 60px;
+      }
+    }
+    
+    @media (max-width: 320px) {
+      .message-container {
+        grid-template-columns: 20px 20px 140px 50px;
+      }
+    }
+    
+    .find-code-message {
+      grid-column: 1 / span 4;
+      text-align: center;
+      padding: 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      font-style: italic;
+      width: 100%;
+      box-sizing: border-box;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+/**
+ * Initialize the game
+ */
+function initGame() {
+  debug('Initializing game');
+  
+  // Make sure the mode picker is hidden
+  modePicker.classList.add("hidden");
+  
+  // Clear the board and game state
+  board.innerHTML = "";
+  guessArea.innerHTML = "";
+  secretCode = [];
+  currentRow = 1;
+  currentGuess = Array(CODE_LENGTH).fill(null);
+  isCodemakerTurn = true;
+  gameOver = false;
+  
+  // Always remove any existing message first
+  removeFindCodeMessage();
+  
+  // Set up UI for the different modes
+  if (currentMode === GAME_MODES.CODEBREAKER) {
+    debug('Setting up codebreaker mode');
+    isCodemakerTurn = false; // Computer creates the code
+    codemakerLabel.classList.remove("active");
+    codebreakerLabel.classList.add("active");
+    
+    // Show findCode message only in codebreakerMode
+    showFindCodeMessage();
+  } else {
+    // Default behavior for 'both' and 'codemakerMode'
+    codemakerLabel.classList.add("active");
+    codebreakerLabel.classList.remove("active");
+  }
+  
+  // Reset submit button
+  submitBtn.setAttribute("disabled", "true");
+  submitBtn.classList.remove("active");
+  
+  debug('Building game board');
+  // Create rows (10-1)
+  for (let row = MAX_ROWS; row >= 1; row--) {
+    createGameRow(row);
+  }
+  
+  debug('Creating guess area');
+  // Create the guess area circles with current CODE_LENGTH
+  for (let col = 0; col < CODE_LENGTH; col++) {
+    const circle = document.createElement("div");
+    circle.className = "circle";
+    circle.dataset.col = col;
+    circle.addEventListener("click", () => onGuessCircleClick(col));
+    guessArea.appendChild(circle);
+  }
+  
+  // Apply five-circles class if CODE_LENGTH is 5
+  if (CODE_LENGTH === 5) {
+    document.querySelectorAll('.circles-container').forEach(container => {
+      container.classList.add('five-circles');
+    });
+    guessArea.classList.add('five-circles');
+  } else {
+    document.querySelectorAll('.circles-container').forEach(container => {
+      container.classList.remove('five-circles');
+    });
+    guessArea.classList.remove('five-circles');
+  }
+  
+  // Initialize the buttons
+  initializeButtons();
+  
+  // Handle computer code creation in codebreakerMode
+  if (currentMode === GAME_MODES.CODEBREAKER) {
+    generateComputerCode();
+  }
+  
+  debug('Game initialized');
+}
+
+/**
+ * Create a game row
+ */
+function createGameRow(row) {
+  const rowDiv = document.createElement("div");
+  rowDiv.className = "row";
+  
+  // Row number (column 1)
+  const rowNumber = document.createElement("span");
+  rowNumber.className = "row-number";
+  rowNumber.textContent = row;
+  rowDiv.appendChild(rowNumber);
+  
+  // Colors feedback (column 2)
+  const colorsFeedback = document.createElement("span");
+  colorsFeedback.className = "colors-feedback";
+  rowDiv.appendChild(colorsFeedback);
+  
+  // Circles container (column 3)
+  const circlesContainer = document.createElement("div");
+  circlesContainer.className = "circles-container";
+  circlesContainer.dataset.row = row;
+  
+  // Create circles based on CODE_LENGTH
+  for (let col = 0; col < CODE_LENGTH; col++) {
+    const circle = document.createElement("div");
+    circle.className = "circle";
+    circle.dataset.row = row;
+    circle.dataset.col = col;
+    circle.addEventListener("click", () => onCircleClick(row, col));
+    circlesContainer.appendChild(circle);
+  }
+  rowDiv.appendChild(circlesContainer);
+  
+  // Position feedback (column 4)
+  const positionFeedback = document.createElement("span");
+  positionFeedback.className = "position-feedback";
+  rowDiv.appendChild(positionFeedback);
+  
+  board.appendChild(rowDiv);
+}
+
+/**
+ * Initialize buttons
+ */
+function initializeButtons() {
+  debug('Initializing buttons');
+  
+  // Make sure the new game button is always active
+  newGameBtn.classList.add("active");
+  
+  // Set the submit button to its initial state
+  submitBtn.textContent = translations[currentLang].submit;
+  
+  if (currentMode === GAME_MODES.CODEBREAKER) {
+    // In codebreaker mode, the submit button is for "give up"
+    submitBtn.textContent = translations[currentLang].giveUp;
+    submitBtn.disabled = false;
+    submitBtn.removeAttribute("disabled");
+    submitBtn.classList.add("active");
+    submitBtn.onclick = function() {
+      revealCode();
+    };
+  } else if (isCodemakerTurn) {
+    // In codemaker turn, button starts disabled until code is complete
+    submitBtn.disabled = true;
+    submitBtn.setAttribute("disabled", "true");
+    submitBtn.classList.remove("active");
+    
+    // Reset the onclick handler to submitCode
+    submitBtn.onclick = submitCode;
+  } else {
+    // In codebreaker turn, the submit button is for "give up"
+    submitBtn.textContent = translations[currentLang].giveUp;
+    submitBtn.disabled = false;
+    submitBtn.removeAttribute("disabled");
+    submitBtn.classList.add("active");
+    submitBtn.onclick = function() {
+      revealCode();
+    };
+  }
+}
+
+/**
+ * Generate a random code for the computer
+ */
+function generateComputerCode() {
+  debug('Generating computer code');
+  
+  // Clear existing code and generate new one with correct length
+  secretCode = [];
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    const randomIndex = Math.floor(Math.random() * COLORS.length);
+    secretCode[i] = COLORS[randomIndex];
+  }
+  
+  // Update game state to codebreaker turn
+  isCodemakerTurn = false;
+  
+  // Add check button for the first row
+  addCheckButton();
+}
+
+/**
+ * Handle circle click
+ */
+function onCircleClick(row, col) {
+  debug(`Circle clicked: row ${row}, col ${col}`);
+  
+  // Ignore clicks if game is over
+  if (gameOver) {
+    return;
+  }
+  
+  // Show color picker for codebreaker turn in 'both' mode or in 'codebreakerMode'
+  if ((currentMode === GAME_MODES.BOTH && !isCodemakerTurn && row === currentRow) ||
+    (currentMode === GAME_MODES.CODEBREAKER && row === currentRow)) {
+    
+    showColorPicker(row, col, false);
+    
+    // Add check button when clicking on a codebreaker row
+    // Only add if it doesn't exist yet for this row
+    if (!checkButton || parseInt(checkButton.dataset.row) !== row) {
+      addCheckButton();
+    }
+  }
+}
+
+/**
+ * Handle guess circle click
+ */
+function onGuessCircleClick(col) {
+  debug(`Guess circle clicked: col ${col}`);
+  
+  // Show color picker for codemaker turn in 'both' mode or in 'codemakerMode'
+  if ((currentMode === GAME_MODES.BOTH && isCodemakerTurn) || currentMode === GAME_MODES.CODEMAKER) {
+    showColorPicker(0, col, true);
+  }
+}
+
+/**
+ * Show the color picker
+ */
+function showColorPicker(row, col, isGuess) {
+  debug(`Showing color picker: row ${row}, col ${col}, isGuess ${isGuess}`);
+  
+  // First make sure the color picker has all color options
+  ensureColorPickerOptions();
+  
+  // Show the picker
+  colorPicker.classList.remove("hidden");
+  
+  // Find the target circle
+  const circle = isGuess
+    ? guessArea.children[col]
+    : document.querySelector(`.circles-container[data-row="${row}"] .circle[data-col="${col}"]`);
+    
+  if (!circle) {
+    console.error('Target circle not found');
+    return;
+  }
+  
+  // Position the picker
+  positionPicker(colorPicker, circle);
+  
+  colorPicker.style.zIndex = "1000";
+  
+  // Store the current target info in the picker element
+  colorPicker.dataset.row = row;
+  colorPicker.dataset.col = col;
+  colorPicker.dataset.isGuess = isGuess;
+}
+
+/**
+ * Ensure the color picker has all color options
+ */
+function ensureColorPickerOptions() {
+  const colorsContainer = colorPicker.querySelector('.colors');
+  
+  // Clear existing colors
+  colorsContainer.innerHTML = '';
+  
+  // Add all color options
+  COLORS.forEach(color => {
+    const option = document.createElement('div');
+    option.className = 'color-option';
+    option.style.backgroundColor = color;
+    option.addEventListener('click', () => selectColor(color));
+    colorsContainer.appendChild(option);
+  });
+}
+
+/**
+ * Select a color from the color picker
+ */
+function selectColor(color) {
+  debug(`Color selected: ${color}`);
+  
+  // Get target info from the picker element
+  const row = parseInt(colorPicker.dataset.row);
+  const col = parseInt(colorPicker.dataset.col);
+  const isGuess = colorPicker.dataset.isGuess === 'true';
+  
+  if (isGuess) {
+    // This is for the codemaker (guessArea)
+    guessArea.children[col].style.backgroundColor = color;
+    currentGuess[col] = color;
+    
+    // Enable submit button if all codemaker circles are filled
+    if (currentGuess.every(c => c !== null)) {
+      submitBtn.removeAttribute("disabled");
+      submitBtn.classList.add("active");
+    }
+  } else {
+    // This is for the codebreaker (board rows)
+    const circle = document.querySelector(`.circles-container[data-row="${row}"] .circle[data-col="${col}"]`);
+    if (circle) {
+      circle.style.backgroundColor = color;
+    }
+    
+    // In codebreaker mode, make sure currentGuess is updated correctly
+    // Find all circles in the current row and get their colors
+    const currentRowCircles = Array.from(document.querySelectorAll(`.circles-container[data-row="${row}"] .circle`));
+    currentGuess = currentRowCircles.map(circle => circle.style.backgroundColor);
+    
+    // Enable check button if all circles in this row are filled
+    const allFilled = currentGuess.every(c => c && c !== '');
+    if (allFilled && checkButton) {
+      checkButton.disabled = false;
+      checkButton.removeAttribute("disabled");
+      checkButton.classList.remove("disabled");
+      checkButton.classList.add("active");
+    }
+  }
+  
+  // Hide the color picker
+  hideColorPicker();
+}
+
+/**
+ * Hide the color picker
+ */
+function hideColorPicker() {
+  debug('Hiding color picker');
+  
+  // Add the hidden class
+  colorPicker.classList.add("hidden");
+  
+  // Reset any inline styles
+  colorPicker.style.display = '';
+  colorPicker.style.visibility = '';
+}
+
+/**
+ * Add document click handler to close picker when clicking outside
+ */
+function setupDocumentClickHandler() {
+  debug('Setting up document click handler');
+  
+  document.addEventListener('click', function(event) {
+    // Color picker handling
+    if (
+      !colorPicker.contains(event.target) && 
+      !event.target.classList.contains('circle') && 
+      !colorPicker.classList.contains('hidden')
+    ) {
+      hideColorPicker();
+    }
+    
+    // Mode picker handling
+    if (
+      modePicker && 
+      !modePicker.contains(event.target) && 
+      event.target.id !== 'new-gamebtn' && 
+      !modePicker.classList.contains('hidden')
+    ) {
+      modePicker.classList.add("hidden");
+      modePicker.style.display = 'none';
+    }
+  });
+}
+
+/**
+ * Submit the secret code
+ */
+function submitCode() {
+  debug('Submitting code');
+  
+  if ((currentMode === GAME_MODES.BOTH || currentMode === GAME_MODES.CODEMAKER) && isCodemakerTurn) {
+    // Set the secret code
+    secretCode = [...currentGuess];
+    
+    currentGuess = Array(CODE_LENGTH).fill(null); // Reset the current guess
+    isCodemakerTurn = false;
+    codemakerLabel.classList.remove("active");
+    codebreakerLabel.classList.add("active");
+    
+    submitBtn.disabled = false;
+    submitBtn.removeAttribute("disabled");
+    submitBtn.classList.add("active");
+    
+    // Clear guess area circles
+    for (let col = 0; col < CODE_LENGTH; col++) {
+      const circle = guessArea.children[col];
+      if (circle) {
+        circle.style.backgroundColor = "";
+      }
+    }
+    
+    if (currentMode === GAME_MODES.BOTH) {
+      // Update button for "GIVE UP" functionality
+      submitBtn.textContent = translations[currentLang].giveUp;
+      submitBtn.onclick = revealCode;
+
+      // Add check button for the first row
+      addCheckButton();
+    } 
+    else if (currentMode === GAME_MODES.CODEMAKER) {
+      // Handle computer guess logic
+      computerGuess();
+    }
+  }
+}
+
+/**
+ * Add check button to the current row
+ */
+function addCheckButton() {
+  debug(`Adding check button for row ${currentRow}`);
+  
+  if (checkButton) {
+    checkButton.remove();
+  }
+  
+  checkButton = document.createElement("button");
+  checkButton.className = "check-btn translatable disabled";
+  checkButton.dataset.key = "check";
+  checkButton.dataset.row = currentRow; // Track which row this button belongs to
+  checkButton.textContent = translations[currentLang].check;
+  checkButton.disabled = true;
+  checkButton.classList.add("disabled"); // Add disabled class
+  checkButton.onclick = checkGuess;
+  
+  // Find the current row
+  const row = document.querySelector(`.circles-container[data-row="${currentRow}"]`).closest('.row');
+  if (row) {
+    const positionFeedback = row.querySelector(".position-feedback");
+    if (positionFeedback) {
+      // Store existing content as data attribute
+      positionFeedback.dataset.original = positionFeedback.textContent;
+      
+      // Clear the position feedback and add the button inside it
+      positionFeedback.textContent = "";
+      positionFeedback.appendChild(checkButton);
+    }
+  }
+}
+
+/**
+ * Reveal the secret code (give up)
+ */
+function revealCode() {
+  debug('Revealing code');
+  
+  // Reveal the secret code
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    guessArea.children[i].style.backgroundColor = secretCode[i];
+  }
+  
+  // Disable the submit button
+  submitBtn.disabled = true;
+  submitBtn.setAttribute("disabled", "true");
+  submitBtn.classList.remove("active");
+  
+  // Remove the check button if it exists
+  if (checkButton) {
+    checkButton.remove();
+    checkButton = null;
+  }
+  
+  // Set game over state
+  gameOver = true;
+  
+  // Display game over message
+  alert(`${translations[currentLang].gameOver}`);
+  
+  // Remove click handlers from all circles in the current and future rows
+  for (let row = currentRow; row <= MAX_ROWS; row++) {
+    const circles = document.querySelectorAll(`.circles-container[data-row="${row}"] .circle`);
+    circles.forEach(circle => {
+      // Clone and replace to remove event listeners
+      const newCircle = circle.cloneNode(true);
+      circle.parentNode.replaceChild(newCircle, circle);
+    });
+  }
+}
+
+/**
+ * Check the current guess against the secret code
+ */
+function checkGuess() {
+  debug('Checking guess');
+  
+  // Get the current row's circles to ensure we have the correct colors
+  const currentRowCircles = Array.from(document.querySelectorAll(`.circles-container[data-row="${currentRow}"] .circle`));
+  
+  // Make sure currentGuess is updated with the actual circle colors
+  // Use getComputedStyle for more reliable color extraction
+  currentGuess = currentRowCircles.map(circle => {
+    const backgroundColor = window.getComputedStyle(circle).backgroundColor;
+    return backgroundColor || null;
+  });
+  
+  // Check if all colors are set
+  if (currentGuess.some(color => !color)) {
+    debug('Not all colors are selected, ignoring check');
+    return; // Don't proceed if some colors are missing
+  }
+  
+  const result = checkGuessLogic(secretCode, currentGuess);
+  
+  const row = document.querySelector(`.circles-container[data-row="${currentRow}"]`).closest('.row');
+  
+  // Remove check button from the position-feedback element
+  if (checkButton) {
+    checkButton.remove();
+    checkButton = null;
+  }
+  
+  // Set the feedback values
+  row.querySelector(".colors-feedback").textContent = result.correctColors;
+  row.querySelector(".position-feedback").textContent = result.correctPositions;
+  
+  // Reset current guess for next row
+  currentGuess = Array(CODE_LENGTH).fill(null);
+  
+  // Check if game is won
+  if (result.correctPositions === CODE_LENGTH) {
+    // Game won
+    alert(translations[currentLang].congratulations);
+    submitBtn.setAttribute("disabled", "true");
+    if (checkButton) checkButton.disabled = true;
+    gameOver = true;
+    return;
+  }
+  
+  // Move to next row
+  currentRow++;
+  
+  // Check if max rows reached
+  if (currentRow > MAX_ROWS) {
+    // Game over - max rows reached
+    for (let i = 0; i < CODE_LENGTH; i++) {
+      guessArea.children[i].style.backgroundColor = secretCode[i];
+    }
+    alert(`${translations[currentLang].gameOverFailed}`);
+    submitBtn.setAttribute("disabled", "true");
+    if (checkButton) checkButton.disabled = true;
+    gameOver = true;
+    return;
+  }
+  
+  // Add check button for next row
+  addCheckButton();
+}
+
+/**
+ * Logic to check a guess against the secret code
+ */
+function checkGuessLogic(secret, guess) {
+  debug('Running guess logic check');
+  
+  let correctPositions = 0;
+  let correctColors = 0;
+  
+  if (!secret || !guess || secret.length !== CODE_LENGTH || guess.length !== CODE_LENGTH) {
+    console.error('Invalid secret or guess:', { secret, guess });
+    return { correctPositions: 0, correctColors: 0 };
+  }
+  
+  // Create copies of the arrays to avoid modifying the originals
+  const secretTemp = [...secret];
+  const guessTemp = [...guess];
+  
+  // Normalize colors for comparison
+  function normalizeColor(color) {
+    if (!color) return null;
+    if (color === '') return null;
+    
+    // If already in hex format (#RRGGBB)
+    if (color.startsWith('#')) {
+      // Convert hex to RGB for consistent comparison
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      return `rgb(${r},${g},${b})`;
+    }
+    
+    // If in rgb format, standardize it
+    if (color.startsWith('rgb')) {
+      // Extract RGB values to be more robust
+      const rgbValues = color.match(/\d+/g);
+      if (rgbValues && rgbValues.length >= 3) {
+        return `rgb(${rgbValues[0]},${rgbValues[1]},${rgbValues[2]})`;
+      }
+    }
+    
+    return color.toLowerCase().trim();
+  }
+  
+  // Normalize all colors for comparison
+  const normalizedSecret = secretTemp.map(normalizeColor);
+  const normalizedGuess = guessTemp.map(normalizeColor);
+  
+  // Create working copies for our algorithm
+  const secretCopy = [...normalizedSecret];
+  const guessCopy = [...normalizedGuess];
+  
+  // First pass: check for correct positions
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    if (guessCopy[i] === secretCopy[i]) {
+      correctPositions++;
+      // Mark as counted by setting to special value
+      secretCopy[i] = null;
+      guessCopy[i] = null;
+    }
+  }
+  
+  // Second pass: check for correct colors in wrong positions
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    if (guessCopy[i] !== null) {
+      for (let j = 0; j < CODE_LENGTH; j++) {
+        if (secretCopy[j] !== null && guessCopy[i] === secretCopy[j]) {
+          correctColors++;
+          // Mark as counted
+          secretCopy[j] = null;
+          guessCopy[i] = null;
+          break;
+        }
+      }
+    }
+  }
+  
+  return { correctPositions, correctColors };
+}
+
+/**
+ * Computer guess algorithm
+ */
+function computerGuess() {
+  debug('Starting computer guess algorithm');
+  
+  gameOver = false;
+  currentRow = 1;
+  
+  const guessDelay = 1500; // Delay between guesses for visual effect
+  const colors = COLORS;
+  let possibleCodes = [];
+  
+  // Generate all possible codes (using indices for efficiency)
+  // Dynamically handle code length (4 or 5)
+  if (CODE_LENGTH === 4) {
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = 0; j < colors.length; j++) {
+        for (let k = 0; k < colors.length; k++) {
+          for (let l = 0; l < colors.length; l++) {
+            possibleCodes.push([i, j, k, l]);
+          }
+        }
+      }
+    }
+  } else if (CODE_LENGTH === 5) {
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = 0; j < colors.length; j++) {
+        for (let k = 0; k < colors.length; k++) {
+          for (let l = 0; l < colors.length; l++) {
+            for (let m = 0; m < colors.length; m++) {
+              possibleCodes.push([i, j, k, l, m]);
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  debug(`Generated ${possibleCodes.length} possible codes`);
+  
+  // Start with a simple first guess based on code length
+  let currentGuessIndices;
+  if (CODE_LENGTH === 4) {
+    currentGuessIndices = [0, 0, 1, 1]; // Equivalent to "1122"
+  } else { // CODE_LENGTH === 5
+    currentGuessIndices = [0, 0, 1, 1, 2]; // Equivalent to "11223"
+  }
+  
+  let currentGuessColors = indicesToColors(currentGuessIndices, colors);
+  
+  // Convert indices to actual colors (reused from original function)
+  function indicesToColors(indices, colors) {
+    return indices.map(index => colors[index]);
+  }
+  
+  // The rest of the function remains largely the same,
+  // but we need to make sure it handles variable code length
+  
+  // Convert colors to indices
+  function colorsToIndices(colorArray, colors) {
+    return colorArray.map(color => {
+      const normalizedColor = normalizeColor(color);
+      for (let i = 0; i < colors.length; i++) {
+        if (normalizeColor(colors[i]) === normalizedColor) {
+          return i;
+        }
+      }
+      return 0;
+    });
+  }
+  
+  // Normalize color format (unchanged)
+  function normalizeColor(color) {
+    if (!color) return null;
+    if (color.startsWith('#')) {
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      return `rgb(${r},${g},${b})`;
+    }
+    if (color.startsWith('rgb')) {
+      const rgbValues = color.match(/\d+/g);
+      if (rgbValues && rgbValues.length >= 3) {
+        return `rgb(${rgbValues[0]},${rgbValues[1]},${rgbValues[2]})`;
+      }
+    }
+    return color.toLowerCase().trim();
+  }
+  
+  // Evaluate a guess - make sure it handles CODE_LENGTH properly
+  function evaluateGuess(secretIndices, guessIndices) {
+    let correctPositions = 0;
+    let correctColors = 0;
+    const secretCopy = [...secretIndices];
+    const guessCopy = [...guessIndices];
+    
+    // Check correct positions
+    for (let i = 0; i < CODE_LENGTH; i++) {
+      if (guessCopy[i] === secretCopy[i]) {
+        correctPositions++;
+        secretCopy[i] = -1;
+        guessCopy[i] = -2;
+      }
+    }
+    
+    // Check correct colors in wrong positions
+    for (let i = 0; i < CODE_LENGTH; i++) {
+      if (guessCopy[i] >= 0) {
+        for (let j = 0; j < CODE_LENGTH; j++) {
+          if (secretCopy[j] >= 0 && guessCopy[i] === secretCopy[j]) {
+            correctColors++;
+            secretCopy[j] = -1;
+            break;
+          }
+        }
+      }
+    }
+    
+    return { correctPositions, correctColors };
+  }
+  
+  // Filter codes based on feedback
+  function filterCodes(codes, guessIndices, correctPositions, correctColors) {
+    return codes.filter(codeIndices => {
+      const result = evaluateGuess(codeIndices, guessIndices);
+      return result.correctPositions === correctPositions && 
+            result.correctColors === correctColors;
+    });
+  }
+  
+  // Choose next guess using minimax - handles any code length
+  function chooseNextGuess() {
+    if (possibleCodes.length === 1) return possibleCodes[0];
+    
+    let bestGuess = null;
+    let minMaxScore = Infinity;
+    
+    // Sample candidate codes for efficiency
+    const candidateCodes = possibleCodes.length <= 50 ? 
+      possibleCodes : sampleCodes(possibleCodes, 50);
+    
+    for (const candidate of candidateCodes) {
+      const scoreDistribution = {};
+      
+      // Sample evaluation codes for efficiency
+      const evaluationCodes = possibleCodes.length <= 80 ? 
+        possibleCodes : sampleCodes(possibleCodes, 80);
+      
+      for (const code of evaluationCodes) {
+        const result = evaluateGuess(code, candidate);
+        const key = `${result.correctPositions},${result.correctColors}`;
+        scoreDistribution[key] = (scoreDistribution[key] || 0) + 1;
+      }
+      
+      // Find max score (worst case)
+      let maxScore = Math.max(...Object.values(scoreDistribution));
+      
+      if (maxScore < minMaxScore) {
+        minMaxScore = maxScore;
+        bestGuess = candidate;
+      } else if (maxScore === minMaxScore && possibleCodes.some(c => 
+        c.every((val, idx) => val === candidate[idx]))) {
+        bestGuess = candidate;
+      }
+    }
+    
+    return bestGuess || possibleCodes[0];
+  }
+  
+  // Sample codes for efficiency (unchanged)
+  function sampleCodes(codes, sampleSize) {
+    if (codes.length <= sampleSize) return [...codes];
+    
+    const sample = [];
+    const codesCopy = [...codes];
+    
+    for (let i = 0; i < sampleSize; i++) {
+      const randomIndex = Math.floor(Math.random() * codesCopy.length);
+      sample.push(codesCopy[randomIndex]);
+      codesCopy.splice(randomIndex, 1);
+    }
+    
+    return sample;
+  }
+  
+  // Display functions
+  function displayComputerGuess(colorGuess, row) {
+    const circles = document.querySelectorAll(`.circles-container[data-row="${row}"] .circle`);
+    for (let i = 0; i < CODE_LENGTH; i++) {
+      circles[i].style.backgroundColor = colorGuess[i];
+    }
+  }
+  
+  function displayFeedback(correctPositions, correctColors, row) {
+    const rowElement = document.querySelector(`.circles-container[data-row="${row}"]`).closest('.row');
+    rowElement.querySelector(".colors-feedback").textContent = correctColors;
+    rowElement.querySelector(".position-feedback").textContent = correctPositions;
+  }
+  
+  // Main guess function
+  function makeGuess() {
+    if (currentRow > MAX_ROWS || gameOver) return;
+    
+    // Display the computer's guess
+    displayComputerGuess(currentGuessColors, currentRow);
+    
+    // Evaluate the guess
+    const secretIndices = colorsToIndices(secretCode, colors);
+    const { correctPositions, correctColors } = evaluateGuess(secretIndices, currentGuessIndices);
+    
+    // Display feedback
+    displayFeedback(correctPositions, correctColors, currentRow);
+    
+    // Check if won
+    if (correctPositions === CODE_LENGTH) {
+      setTimeout(() => {
+        alert(`${translations[currentLang].computerSuccess || "Computer cracked the code!"}`);
+        gameOver = true;
+      }, 500);
+      return;
+    }
+    
+    // Next row
+    currentRow++;
+    
+    // Check if max rows reached
+    if (currentRow > MAX_ROWS) {
+      setTimeout(() => {
+        alert(translations[currentLang].computerFailed || "Computer couldn't crack the code within the maximum attempts.");
+        gameOver = true;
+        // Show secret code
+        for (let i = 0; i < CODE_LENGTH; i++) {
+          guessArea.children[i].style.backgroundColor = secretCode[i];
+        }
+      }, 500);
+      return;
+    }
+    
+    // Filter and choose next guess
+    possibleCodes = filterCodes(possibleCodes, currentGuessIndices, correctPositions, correctColors);
+    currentGuessIndices = chooseNextGuess();
+    currentGuessColors = indicesToColors(currentGuessIndices, colors);
+    
+    // Schedule next guess
+    setTimeout(makeGuess, guessDelay);
+  }
+  
+  // Start the process
+  setTimeout(makeGuess, guessDelay);
+}
+
+/**
+ * Update resource links with version parameter
+ */
+function updateResourceLinks() {
+  debug(`Updating resource links with version: ${APP_VERSION}`);
+  
+  // Update CSS link
+  const stylesLink = document.getElementById('styles-link');
+  if (stylesLink) {
+    stylesLink.href = `styles.css?v=${APP_VERSION}`;
+  }
+  
+  // Update manifest link
+  const manifestLink = document.getElementById('manifest-link');
+  if (manifestLink) {
+    manifestLink.href = `manifest.json?v=${APP_VERSION}`;
+  }
+}
+
+/**
+ * Initialize service worker
+ */
+function initServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      debug('Checking for service worker support');
+      
+      // Register service worker with version parameter
+      navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`)
+        .then(reg => {
+          debug('Service worker registered!');
+          
+          // Force update check immediately
+          reg.update();
+          
+          // Setup regular update checks
+          setInterval(() => {
+            debug('Checking for service worker updates...');
+            reg.update();
+          }, 60 * 60 * 1000); // Check hourly
+          
+          // Check for updates
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            debug('Service Worker update found!');
+            
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                debug('New service worker installed and ready for use!');
+                
+                // Create a more visible update notification
+                showUpdateNotification();
+              }
+            });
+          });
+        })
+        .catch(err => {
+          console.error('Service worker registration failed:', err);
+        });
+    });
+  }
+}
+
+/**
+ * Show update notification
+ */
+function showUpdateNotification() {
+  const notification = document.createElement('div');
+  notification.style.position = 'fixed';
+  notification.style.top = '0';
+  notification.style.left = '0';
+  notification.style.right = '0';
+  notification.style.backgroundColor = '#4CAF50';
+  notification.style.color = 'white';
+  notification.style.padding = '16px';
+  notification.style.textAlign = 'center';
+  notification.style.zIndex = '10000';
+  notification.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+  
+  notification.innerHTML = `
+    <strong>New version available!</strong> 
+    <button id="update-button" style="margin-left:15px; padding:8px; background-color:white; color:#4CAF50; border:none; border-radius:4px; cursor:pointer;">
+      Update Now
+    </button>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  document.getElementById('update-button').addEventListener('click', function() {
+    forceRefresh();
+  });
+}
+
+/**
+ * Force refresh the application
+ */
+function forceRefresh() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      for (let registration of registrations) {
+        debug('Unregistering service worker');
+        registration.unregister();
+      }
+      
+      // Clear caches
+      if (window.caches) {
+        caches.keys().then(function(names) {
+          for (let name of names) {
+            caches.delete(name);
+          }
+        });
+      }
+      
+      debug('All service workers unregistered and caches cleared, reloading page');
+      window.location.reload(true);
+    });
+  } else {
+    // Fallback for browsers without service worker support
+    window.location.reload(true);
+  }
+}
+
+// Make force refresh globally available
+window.forceRefresh = forceRefresh;
+
+// Add a global error handler
+window.addEventListener('error', function(event) {
+  console.error('Global error caught:', event.error);
 });
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        console.log('Checking for service worker support');
-        navigator.serviceWorker.register('./service-worker.js')
-            .then(reg => console.log('Service worker registered!', reg))
-            .catch(err => console.log('Service worker registration failed:', err));
-    });
-}
+// Add window resize event handler to adjust scaling
+window.addEventListener('resize', function() {
+  adjustGameScaling();
+  
+  // If color picker is open, reposition it
+  if (!colorPicker.classList.contains('hidden')) {
+    const row = parseInt(colorPicker.dataset.row);
+    const col = parseInt(colorPicker.dataset.col);
+    const isGuess = colorPicker.dataset.isGuess === 'true';
+    
+    const circle = isGuess
+      ? guessArea.children[col]
+      : document.querySelector(`.circles-container[data-row="${row}"] .circle[data-col="${col}"]`);
+      
+    if (circle) {
+      positionPicker(colorPicker, circle);
+    }
+  }
+  
+  // If mode picker is open, reposition it
+  if (!modePicker.classList.contains('hidden')) {
+    positionPicker(modePicker, newGameBtn, true);
+  }
+});
+
+// Main initialization when DOM content is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  debug('DOM fully loaded, initializing game...');
+  
+  // Signal that we're running
+  window.modulesLoaded = true;
+  
+  // First check if we can access all DOM elements
+  if (!initDomReferences()) {
+    console.error('Failed to initialize DOM references');
+    return;
+  }
+  
+  // Update resource links with version
+  updateResourceLinks();
+  
+  // Colorize the heading
+  colorizeHeading();
+  
+  // Set default language
+  setLanguage(currentLang);
+  
+  // Add CSS for mode options
+  addModeCss();
+  
+  // Set up language switcher
+  setupLanguageSwitcher();
+  
+  // Set up document click handler
+  setupDocumentClickHandler();
+  
+  // Call adjustGameScaling on load
+  adjustGameScaling();
+  
+  // Initialize the game
+  initGame();
+  
+  // Set up new game button
+  newGameBtn.addEventListener("click", function(event) {
+	  debug('New Game button clicked');
+	  event.stopPropagation();
+	  
+	  modePicker.classList.remove("hidden");
+	  updateModePicker();
+	  
+	  // Position the mode picker
+	  positionPicker(modePicker, newGameBtn, true);
+  });
+  
+  // Initialize service worker
+  initServiceWorker();
+  
+  debug('Game initialized successfully');
+  
+  // Automatically show the mode picker when the page loads
+  setTimeout(function() {
+    debug('Auto-triggering new game button');
+    modePicker.classList.remove("hidden");
+    modePicker.style.display = 'flex';
+    updateModePicker();
+  }, 500); // Short delay to ensure everything is loaded
+});
