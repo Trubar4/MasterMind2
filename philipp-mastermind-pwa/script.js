@@ -1,5 +1,5 @@
 // App version - increment this when making changes
-const APP_VERSION = '2.0.2';
+const APP_VERSION = '2.0.3';
 
 // Utility function for debugging
 function debug(message) {
