@@ -2046,6 +2046,110 @@ function forceRefresh() {
   }
 }
 
+/**
+ * Function to ensure buttons are properly scaled
+ */
+function fixButtonScaling() {
+  debug('Fixing button scaling');
+  
+  // Get all buttons
+  const buttons = document.querySelectorAll('button');
+  
+  // Get current scale from container
+  const container = document.querySelector('.container');
+  let scale = 1;
+  
+  if (container) {
+    const transform = window.getComputedStyle(container).transform;
+    if (transform && transform !== 'none') {
+      const matrix = transform.match(/matrix\(([^)]+)\)/);
+      if (matrix && matrix[1]) {
+        // The scale is typically the first value in the matrix
+        const values = matrix[1].split(',');
+        if (values.length >= 1) {
+          scale = parseFloat(values[0]);
+        }
+      }
+    }
+  }
+  
+  debug(`Current container scale: ${scale}`);
+  
+  // Fix button scaling if necessary
+  buttons.forEach(button => {
+    // Ensure proper sizing for the submit button
+    if (button.id === 'submitbtn') {
+      // Make sure submit button has proper max-width based on screen size
+      if (window.innerWidth <= 320) {
+        button.style.maxWidth = '50px';
+      } else if (window.innerWidth <= 400) {
+        button.style.maxWidth = '60px';
+      } else if (window.innerWidth <= 500) {
+        button.style.maxWidth = '70px';
+      } else {
+        button.style.maxWidth = '80px';
+      }
+    }
+    
+    // Ensure all buttons have pointer events
+    button.style.pointerEvents = 'auto';
+  });
+}
+
+/**
+ * Ensure button text is sized appropriately
+ */
+function updateButtonText() {
+  debug('Updating button text scaling');
+  
+  // Get submit button
+  const submitBtn = document.getElementById('submitbtn');
+  if (!submitBtn) return;
+  
+  // Check viewport width to determine appropriate text sizing
+  const viewportWidth = window.innerWidth;
+  
+  // Update button text size based on viewport
+  if (viewportWidth <= 320) {
+    submitBtn.style.fontSize = '0.7rem';
+    submitBtn.style.padding = '0.2rem';
+  } else if (viewportWidth <= 400) {
+    submitBtn.style.fontSize = '0.8rem';
+    submitBtn.style.padding = '0.3rem';
+  } else {
+    submitBtn.style.fontSize = '0.9rem';
+    submitBtn.style.padding = '0.4rem';
+  }
+  
+  // Ensure the button width is appropriate
+  if (viewportWidth <= 320) {
+    submitBtn.style.width = '80%';
+  } else {
+    submitBtn.style.width = '90%';
+  }
+  
+  // Add window resize listener to update button text
+  if (!window.buttonTextResizeListenerAdded) {
+    window.addEventListener('resize', updateButtonText);
+    window.buttonTextResizeListenerAdded = true;
+  }
+}
+
+// Add this to the bottom of your adjustGameScaling function
+function enhanceAdjustGameScaling() {
+  // Save the original function
+  const originalAdjustGameScaling = adjustGameScaling;
+  
+  // Replace with enhanced version
+  adjustGameScaling = function() {
+    // Call the original function
+    originalAdjustGameScaling();
+    
+    // Fix button scaling
+    fixButtonScaling();
+  };
+}
+
 // Make force refresh globally available
 window.forceRefresh = forceRefresh;
 
@@ -2149,8 +2253,20 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize service worker
   initServiceWorker();
   
+  setTimeout(enhanceAdjustGameScaling, 500);
   debug('Game initialized successfully');
   
+  // Call this during initialization and after scaling
+	document.addEventListener('DOMContentLoaded', function() {
+	  // Add after other initialization:
+	  setTimeout(updateButtonText, 600);
+	  
+	  // Also update button text after window resize
+	  window.addEventListener('resize', function() {
+		setTimeout(updateButtonText, 100);
+	  });
+	});
+
   // Automatically show the mode picker when the page loads
   setTimeout(function() {
     debug('Auto-triggering new game button');

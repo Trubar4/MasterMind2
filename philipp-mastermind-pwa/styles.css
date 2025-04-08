@@ -225,7 +225,19 @@ h1 {
 }
 
 .controls {
-    margin-top: 5px;
+  width: 100%;
+  margin-top: 5px;
+  display: grid;
+  grid-template-columns: 40px 40px 3px 188px 3px minmax(80px, auto);
+  gap: 0;
+  column-gap: 0;
+  align-items: center;
+  padding: 0;
+  position: relative;
+  border: none;
+  margin-bottom: 8px;
+  background-color: #F5F5F5;
+  margin: 0;
 }
 
 #codemaker-label {
@@ -317,8 +329,24 @@ h1 {
 #submitbtn {
   grid-column: 6;
   width: 90%;
+  max-width: 80px; /* Add max-width to prevent oversizing */
   margin: 0 auto;
   background-color: #B0BEC5;
+  font-size: 0.9rem;
+  padding: 0.4rem;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  height: 36px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* Make sure button responds to scaling */
+  transform-origin: center center;
+  will-change: transform;
 }
 
 #submitbtn.active {
@@ -581,6 +609,11 @@ button {
   .container {
     width: 400px; /* Keep consistent base width */
   }
+  #submitbtn {
+    max-width: 70px;
+    font-size: 0.8rem;
+    height: 32px;
+  }
 }
 
 @media (max-width: 500px) {
@@ -621,6 +654,12 @@ button {
     width: 24px;
     height: 24px;
   }
+  
+  #submitbtn {
+    max-width: 60px;
+    font-size: 0.8rem;
+    height: 32px;
+  }
 }
 
 @media (max-width: 320px) {
@@ -632,5 +671,10 @@ button {
   .five-circles .color-option {
     width: 21px;
     height: 21px;
+  }
+  #submitbtn {
+    max-width: 50px;
+    font-size: 0.7rem;
+    height: 28px;
   }
 }
