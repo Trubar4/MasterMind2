@@ -144,29 +144,60 @@ function adjustGameScaling() {
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
   
-  // Calculate appropriate scaling
-  const isLandscape = viewportWidth > viewportHeight;
+  // Get the natural dimensions of the container (without any scaling)
+  // First, remove any scaling to measure true size
+  const originalTransform = container.style.transform;
+  container.style.transform = '';
   
-  if (isLandscape && viewportHeight < 600) {
-    // Landscape mode on small screens
-    const scale = Math.min(0.9, viewportHeight / 650);
-    container.style.transform = `scale(${scale})`;
+  // Force a reflow to ensure we get the actual dimensions
+  container.offsetHeight; 
+  
+  const containerWidth = container.offsetWidth;
+  const containerHeight = container.getBoundingClientRect().height;
+  
+  // Calculate available space (accounting for some margin)
+  const availableWidth = viewportWidth * 0.95;
+  const availableHeight = viewportHeight * 0.95;
+  
+  // Calculate scale factors for both dimensions
+  const widthScale = availableWidth / containerWidth;
+  const heightScale = availableHeight / containerHeight;
+  
+  // Use the smaller scale to ensure the game fits in both dimensions
+  // This preserves the aspect ratio
+  let scale = Math.min(widthScale, heightScale);
+  
+  // Cap the scale to avoid making the game too large on big screens
+  // but allow it to be as large as possible up to this cap
+  scale = Math.min(scale, 1.5);
+  
+  // Add a minimum scale for very small screens
+  scale = Math.max(scale, 0.5);
+  
+  // Calculate if we're height or width constrained
+  const isHeightConstrained = heightScale < widthScale;
+  
+  // Apply the scaling
+  container.style.transform = `scale(${scale})`;
+  
+  // Log the applied scale for debugging
+  debug(`Applied scale: ${scale}, container dimensions: ${containerWidth}x${containerHeight}`);
+  
+  // Set transform origin based on constraint
+  if (isHeightConstrained) {
+    // If height constrained, center horizontally and align to top
     container.style.transformOrigin = 'center top';
     gameWrapper.style.alignItems = 'flex-start';
     gameWrapper.style.paddingTop = '10px';
-  } else if (viewportWidth < 400) {
-    // Very small screens
-    const scale = Math.min(0.9, viewportWidth / 400);
-    container.style.transform = `scale(${scale})`;
+  } else {
+    // If width constrained, center both ways
     container.style.transformOrigin = 'center center';
     gameWrapper.style.alignItems = 'center';
     gameWrapper.style.paddingTop = '0';
-  } else {
-    // Normal scaling
-    container.style.transform = '';
-    gameWrapper.style.alignItems = 'center';
-    gameWrapper.style.paddingTop = '0';
   }
+  
+  // Add more debug info
+  debug(`Viewport: ${viewportWidth}x${viewportHeight}, Scale factors: width=${widthScale}, height=${heightScale}`);
 }
 
 /**
@@ -175,9 +206,14 @@ function adjustGameScaling() {
 function positionPicker(pickerElement, targetElement, isModePicker = false) {
   if (!pickerElement || !targetElement) return;
   
-  const targetRect = targetElement.getBoundingClientRect();
+  debug(`Positioning ${isModePicker ? 'mode' : 'color'} picker`);
+  
+  // Get viewport dimensions
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
+  
+  // Get the target's position relative to the viewport
+  const targetRect = targetElement.getBoundingClientRect();
   
   // Make picker visible but hidden to measure dimensions
   pickerElement.style.visibility = 'hidden';
@@ -190,23 +226,22 @@ function positionPicker(pickerElement, targetElement, isModePicker = false) {
   pickerElement.style.visibility = '';
   
   if (isModePicker) {
-    // Center the mode picker
+    // Center the mode picker on the screen
     pickerElement.style.top = '50%';
     pickerElement.style.left = '50%';
     pickerElement.style.transform = 'translate(-50%, -50%)';
   } else {
-    // Position color picker above the target
-    const targetCenter = targetRect.left + (targetRect.width / 2);
-    
-    // Calculate positions
+    // Position color picker relative to the target element
     const triangleHeight = 10;
     const spacing = 5;
     
+    // Calculate the center position of the target
+    const targetCenterX = targetRect.left + (targetRect.width / 2);
+    
     // Check if there's enough space above
     const spaceAbove = targetRect.top;
-    const pickerHeight = pickerRect.height;
     
-    if (spaceAbove < pickerHeight + triangleHeight + spacing) {
+    if (spaceAbove < pickerRect.height + triangleHeight + spacing) {
       // Not enough space above, position below
       pickerElement.style.top = `${targetRect.bottom + triangleHeight + spacing}px`;
       
@@ -220,7 +255,7 @@ function positionPicker(pickerElement, targetElement, isModePicker = false) {
       }
     } else {
       // Position above
-      pickerElement.style.top = `${targetRect.top - pickerHeight - triangleHeight - spacing}px`;
+      pickerElement.style.top = `${targetRect.top - pickerRect.height - triangleHeight - spacing}px`;
       
       // Reset triangle to point downward
       const triangle = pickerElement.querySelector('.triangle');
@@ -233,7 +268,7 @@ function positionPicker(pickerElement, targetElement, isModePicker = false) {
     }
     
     // Center horizontally
-    pickerElement.style.left = `${targetCenter - (pickerRect.width / 2)}px`;
+    pickerElement.style.left = `${targetCenterX - (pickerRect.width / 2)}px`;
     
     // Ensure picker stays within viewport horizontally
     const rightEdge = parseFloat(pickerElement.style.left) + pickerRect.width;
@@ -247,6 +282,9 @@ function positionPicker(pickerElement, targetElement, isModePicker = false) {
       pickerElement.style.left = '10px';
     }
   }
+  
+  // Make sure the picker is visible
+  pickerElement.style.zIndex = '2000';
 }
 
 /**
@@ -830,7 +868,7 @@ function onGuessCircleClick(col) {
 function showColorPicker(row, col, isGuess) {
   debug(`Showing color picker: row ${row}, col ${col}, isGuess ${isGuess}`);
   
-  // First make sure the color picker has all color options
+  // First make sure the color picker has all color options with proper sizing
   ensureColorPickerOptions();
   
   // Show the picker
@@ -849,12 +887,22 @@ function showColorPicker(row, col, isGuess) {
   // Position the picker
   positionPicker(colorPicker, circle);
   
-  colorPicker.style.zIndex = "1000";
-  
   // Store the current target info in the picker element
   colorPicker.dataset.row = row;
   colorPicker.dataset.col = col;
   colorPicker.dataset.isGuess = isGuess;
+  
+  // Make sure color picker is above everything else
+  colorPicker.style.zIndex = "2000";
+  
+  // Ensure pointer events work on the color picker
+  colorPicker.style.pointerEvents = 'auto';
+  
+  // Make sure the color options have pointer events too
+  const colorOptions = colorPicker.querySelectorAll('.color-option');
+  colorOptions.forEach(option => {
+    option.style.pointerEvents = 'auto';
+  });
 }
 
 /**
@@ -865,6 +913,12 @@ function ensureColorPickerOptions() {
   
   // Clear existing colors
   colorsContainer.innerHTML = '';
+  
+  // Check if we are in 5-circle mode
+  const isFiveCircles = CODE_LENGTH === 5;
+  
+  // Add or remove five-circles class
+  colorPicker.classList.toggle('five-circles', isFiveCircles);
   
   // Add all color options
   COLORS.forEach(color => {
@@ -1068,7 +1122,7 @@ function revealCode() {
   gameOver = true;
   
   // Display game over message
-  alert(`${translations[currentLang].gameOver}`);
+  // alert(`${translations[currentLang].gameOver}`);
   
   // Remove click handlers from all circles in the current and future rows
   for (let row = currentRow; row <= MAX_ROWS; row++) {
@@ -1575,6 +1629,394 @@ function showUpdateNotification() {
   });
 }
 
+
+
+/**
+ * Add pointer-events helper to handle scaled elements
+ * This fixes click detection on transformed elements
+ */
+function fixClickHandlers() {
+  debug('Fixing click handlers for scaled elements');
+  
+  // Make sure the container has pointer-events: auto
+  const container = document.querySelector('.container');
+  if (container) {
+    container.style.pointerEvents = 'auto';
+  }
+  
+  // Make sure all circle elements have pointer-events: auto
+  const circles = document.querySelectorAll('.circle');
+  circles.forEach(circle => {
+    circle.style.pointerEvents = 'auto';
+  });
+  
+  // Fix for Safari and some mobile browsers - add a wrapper
+  // that captures clicks and redirects them correctly
+  const gameWrapper = document.querySelector('.game-wrapper');
+  if (gameWrapper) {
+    // Ensure the game wrapper passes clicks through
+    gameWrapper.style.pointerEvents = 'auto';
+    
+    // Clear existing click handler if any
+    if (gameWrapper._clickHandler) {
+      gameWrapper.removeEventListener('click', gameWrapper._clickHandler);
+    }
+    
+    // Add a new click handler to debug click issues
+    gameWrapper._clickHandler = function(event) {
+      const target = event.target;
+      
+      // If we clicked directly on a circle, it should work normally
+      if (target.classList.contains('circle')) {
+        debug('Direct circle click detected');
+        return; // Let the event propagate normally
+      }
+      
+      // Check if we clicked near a circle but missed due to scaling
+      // Get coordinates relative to the game wrapper
+      const rect = gameWrapper.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      
+      debug(`Click at coordinates: ${x}, ${y} relative to game wrapper`);
+      
+      // Check all circles to see if we're within their bounds
+      circles.forEach(circle => {
+        const circleRect = circle.getBoundingClientRect();
+        // Convert circle bounds to be relative to the game wrapper
+        const circleLeft = circleRect.left - rect.left;
+        const circleTop = circleRect.top - rect.top;
+        const circleRight = circleLeft + circleRect.width;
+        const circleBottom = circleTop + circleRect.height;
+        
+        // Check if click was inside this circle's bounds
+        if (x >= circleLeft && x <= circleRight && 
+            y >= circleTop && y <= circleBottom) {
+          debug('Click detected near circle, redirecting...');
+          
+          // Simulate a click on this circle
+          setTimeout(() => circle.click(), 0);
+          
+          // Stop propagation to prevent double-clicks
+          event.stopPropagation();
+        }
+      });
+    };
+    
+    gameWrapper.addEventListener('click', gameWrapper._clickHandler);
+  }
+}
+
+/**
+ * Enhanced onCircleClick function that ensures the event is processed
+ */
+function enhancedOnCircleClick(row, col) {
+  debug(`Enhanced circle clicked: row ${row}, col ${col}`);
+  
+  // Ignore clicks if game is over
+  if (gameOver) {
+    return;
+  }
+  
+  // Show color picker for codebreaker turn in 'both' mode or in 'codebreakerMode'
+  if ((currentMode === GAME_MODES.BOTH && !isCodemakerTurn && row === currentRow) ||
+      (currentMode === GAME_MODES.CODEBREAKER && row === currentRow)) {
+    
+    // Make sure the color picker is properly positioned
+    showColorPicker(row, col, false);
+    
+    // Add check button when clicking on a codebreaker row
+    // Only add if it doesn't exist yet for this row
+    if (!checkButton || parseInt(checkButton.dataset.row) !== row) {
+      addCheckButton();
+    }
+  }
+}
+
+/**
+ * Enhanced onGuessCircleClick function that ensures the event is processed
+ */
+function enhancedOnGuessCircleClick(col) {
+  debug(`Enhanced guess circle clicked: col ${col}`);
+  
+  // Show color picker for codemaker turn in 'both' mode or in 'codemakerMode'
+  if ((currentMode === GAME_MODES.BOTH && isCodemakerTurn) || currentMode === GAME_MODES.CODEMAKER) {
+    // Make sure the color picker is properly positioned
+    showColorPicker(0, col, true);
+  }
+}
+
+/**
+ * Function to re-initialize all click handlers after scaling
+ */
+function reinstallClickHandlers() {
+  debug('Reinstalling all click handlers');
+  
+  // Reinstall all circle click handlers in the board
+  const boardCircles = document.querySelectorAll('.circles-container .circle');
+  boardCircles.forEach(circle => {
+    // Clone the circle to remove old event listeners
+    const newCircle = circle.cloneNode(true);
+    
+    // Get row and col from dataset
+    const row = parseInt(newCircle.dataset.row);
+    const col = parseInt(newCircle.dataset.col);
+    
+    // Add the enhanced click handler
+    newCircle.addEventListener('click', () => enhancedOnCircleClick(row, col));
+    
+    // Replace old circle with new one
+    circle.parentNode.replaceChild(newCircle, circle);
+  });
+  
+  // Reinstall all guess area circle click handlers
+  const guessCircles = document.querySelectorAll('#guess-area .circle');
+  guessCircles.forEach((circle, index) => {
+    // Clone the circle to remove old event listeners
+    const newCircle = circle.cloneNode(true);
+    
+    // Add the enhanced click handler
+    newCircle.addEventListener('click', () => enhancedOnGuessCircleClick(index));
+    
+    // Replace old circle with new one
+    circle.parentNode.replaceChild(newCircle, circle);
+  });
+  
+  // Make sure other clickable elements work too
+  document.querySelectorAll('.lang-option').forEach(option => {
+    option.style.pointerEvents = 'auto';
+  });
+  
+  document.querySelectorAll('button').forEach(button => {
+    button.style.pointerEvents = 'auto';
+  });
+}
+
+// Modify the original functions to use our enhanced versions
+function modifyOriginalFunctions() {
+  debug('Modifying original click functions');
+  
+  // Save original functions
+  window._originalOnCircleClick = onCircleClick;
+  window._originalOnGuessCircleClick = onGuessCircleClick;
+  
+  // Replace with enhanced versions
+  onCircleClick = enhancedOnCircleClick;
+  onGuessCircleClick = enhancedOnGuessCircleClick;
+}
+
+// Update the adjustGameScaling function to reinstall handlers after scaling
+function updateAdjustGameScaling() {
+  // After scaling, fix click handlers
+  const originalAdjustGameScaling = adjustGameScaling;
+  
+  adjustGameScaling = function() {
+    // Call the original function
+    originalAdjustGameScaling();
+    
+    // Fix click handlers
+    fixClickHandlers();
+    
+    // Ensure all click handlers are installed
+    setTimeout(reinstallClickHandlers, 100);
+  };
+}
+
+// Call this function right after DOMContentLoaded
+function fixScalingClickIssues() {
+  // Modify original functions
+  modifyOriginalFunctions();
+  
+  // Update the adjustGameScaling function
+  updateAdjustGameScaling();
+  
+  // Fix click handlers
+  fixClickHandlers();
+  
+  // Ensure all click handlers are reinstalled
+  setTimeout(reinstallClickHandlers, 100);
+}
+
+// Add this to your DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', function() {
+  // Add after all other initialization:
+  setTimeout(fixScalingClickIssues, 600);
+});
+
+/**
+ * Improved position picker function that works with scaling
+ */
+function improvedPositionPicker(pickerElement, targetElement, isModePicker = false) {
+  if (!pickerElement || !targetElement) return;
+  
+  debug(`Positioning ${isModePicker ? 'mode' : 'color'} picker`);
+  
+  // Get viewport dimensions
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+  
+  // Get the container with the transform
+  const container = document.querySelector('.container');
+  let scale = 1;
+  
+  // Calculate current scale from the transform
+  if (container) {
+    const transform = window.getComputedStyle(container).transform;
+    if (transform && transform !== 'none') {
+      const matrix = transform.match(/matrix\(([^)]+)\)/);
+      if (matrix && matrix[1]) {
+        // The scale is typically the first value in the matrix
+        const values = matrix[1].split(',');
+        if (values.length >= 1) {
+          scale = parseFloat(values[0]);
+        }
+      }
+    }
+  }
+  
+  debug(`Current scale: ${scale}`);
+  
+  // Get the target's position relative to the scaled container
+  const targetRect = targetElement.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+  
+  // Make picker visible but hidden to measure dimensions
+  pickerElement.style.visibility = 'hidden';
+  pickerElement.style.display = isModePicker ? 'flex' : 'block';
+  
+  // Position the picker element in fixed position (relative to viewport)
+  pickerElement.style.position = 'fixed';
+  
+  // Get picker dimensions
+  const pickerRect = pickerElement.getBoundingClientRect();
+  
+  // Reset visibility
+  pickerElement.style.visibility = '';
+  
+  if (isModePicker) {
+    // Center the mode picker on the screen
+    pickerElement.style.top = '50%';
+    pickerElement.style.left = '50%';
+    pickerElement.style.transform = 'translate(-50%, -50%)';
+  } else {
+    // Position color picker relative to the target element
+    const triangleHeight = 10;
+    const spacing = 5;
+    
+    // Calculate the center position of the target
+    const targetCenterX = targetRect.left + (targetRect.width / 2);
+    
+    // Check if there's enough space above
+    const spaceAbove = targetRect.top;
+    
+    if (spaceAbove < pickerRect.height + triangleHeight + spacing) {
+      // Not enough space above, position below
+      pickerElement.style.top = `${targetRect.bottom + triangleHeight + spacing}px`;
+      
+      // Adjust triangle to point upward
+      const triangle = pickerElement.querySelector('.triangle');
+      if (triangle) {
+        triangle.style.top = '-10px';
+        triangle.style.bottom = 'auto';
+        triangle.style.borderTop = 'none';
+        triangle.style.borderBottom = '10px solid #DAE3F3';
+      }
+    } else {
+      // Position above
+      pickerElement.style.top = `${targetRect.top - pickerRect.height - triangleHeight - spacing}px`;
+      
+      // Reset triangle to point downward
+      const triangle = pickerElement.querySelector('.triangle');
+      if (triangle) {
+        triangle.style.top = 'auto';
+        triangle.style.bottom = '-10px';
+        triangle.style.borderTop = '10px solid #DAE3F3';
+        triangle.style.borderBottom = 'none';
+      }
+    }
+    
+    // Center horizontally
+    pickerElement.style.left = `${targetCenterX - (pickerRect.width / 2)}px`;
+    
+    // Ensure picker stays within viewport horizontally
+    const rightEdge = parseFloat(pickerElement.style.left) + pickerRect.width;
+    const leftEdge = parseFloat(pickerElement.style.left);
+    
+    if (rightEdge > viewportWidth) {
+      pickerElement.style.left = `${viewportWidth - pickerRect.width - 10}px`;
+    }
+    
+    if (leftEdge < 0) {
+      pickerElement.style.left = '10px';
+    }
+  }
+  
+  // Make sure click events work on the picker
+  pickerElement.style.pointerEvents = 'auto';
+  
+  // Add high z-index to ensure visibility
+  pickerElement.style.zIndex = '2000';
+  
+  // Log the picker's position for debugging
+  debug(`Picker positioned at: ${pickerElement.style.left}, ${pickerElement.style.top}`);
+}
+
+/**
+ * Ensure the color picker works with enhanced click handlers
+ */
+function enhanceColorPicker() {
+  debug('Enhancing color picker');
+  
+  // Save the original function
+  const originalShowColorPicker = showColorPicker;
+  
+  // Replace with enhanced version
+  showColorPicker = function(row, col, isGuess) {
+    debug(`Enhanced show color picker: row ${row}, col ${col}, isGuess ${isGuess}`);
+    
+    // First make sure the color picker has all color options
+    ensureColorPickerOptions();
+    
+    // Show the picker
+    colorPicker.classList.remove("hidden");
+    
+    // Find the target circle
+    const circle = isGuess
+      ? guessArea.children[col]
+      : document.querySelector(`.circles-container[data-row="${row}"] .circle[data-col="${col}"]`);
+      
+    if (!circle) {
+      console.error('Target circle not found');
+      return;
+    }
+    
+    // Position the picker using our improved function
+    improvedPositionPicker(colorPicker, circle);
+    
+    // Store the current target info in the picker element
+    colorPicker.dataset.row = row;
+    colorPicker.dataset.col = col;
+    colorPicker.dataset.isGuess = isGuess;
+    
+    // Make sure color picker options have pointer-events
+    const colorOptions = colorPicker.querySelectorAll('.color-option');
+    colorOptions.forEach(option => {
+      option.style.pointerEvents = 'auto';
+    });
+  };
+  
+  // Update the positionPicker function
+  if (typeof positionPicker === 'function') {
+    positionPicker = improvedPositionPicker;
+  }
+}
+
+// Add this to your DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', function() {
+  // Add after other initialization:
+  setTimeout(enhanceColorPicker, 700);
+});
+
 /**
  * Force refresh the application
  */
@@ -1613,29 +2055,44 @@ window.addEventListener('error', function(event) {
 });
 
 // Add window resize event handler to adjust scaling
-window.addEventListener('resize', function() {
-  adjustGameScaling();
+window.removeEventListener('resize', window.resizeHandler);
+
+// Set up a debounced resize handler
+let resizeTimeout;
+window.resizeHandler = function() {
+  // Clear previous timeout
+  clearTimeout(resizeTimeout);
   
-  // If color picker is open, reposition it
-  if (!colorPicker.classList.contains('hidden')) {
-    const row = parseInt(colorPicker.dataset.row);
-    const col = parseInt(colorPicker.dataset.col);
-    const isGuess = colorPicker.dataset.isGuess === 'true';
+  // Set new timeout to avoid excessive calculations during resize
+  resizeTimeout = setTimeout(function() {
+    debug('Window resize detected, adjusting scaling...');
     
-    const circle = isGuess
-      ? guessArea.children[col]
-      : document.querySelector(`.circles-container[data-row="${row}"] .circle[data-col="${col}"]`);
+    // Adjust game scaling
+    adjustGameScaling();
+    
+    // Reposition pickers if open
+    if (!colorPicker.classList.contains('hidden')) {
+      const row = parseInt(colorPicker.dataset.row);
+      const col = parseInt(colorPicker.dataset.col);
+      const isGuess = colorPicker.dataset.isGuess === 'true';
       
-    if (circle) {
-      positionPicker(colorPicker, circle);
+      const circle = isGuess
+        ? guessArea.children[col]
+        : document.querySelector(`.circles-container[data-row="${row}"] .circle[data-col="${col}"]`);
+        
+      if (circle) {
+        positionPicker(colorPicker, circle);
+      }
     }
-  }
-  
-  // If mode picker is open, reposition it
-  if (!modePicker.classList.contains('hidden')) {
-    positionPicker(modePicker, newGameBtn, true);
-  }
-});
+    
+    // If mode picker is open, reposition it
+    if (!modePicker.classList.contains('hidden')) {
+      positionPicker(modePicker, newGameBtn, true);
+    }
+  }, 100); // 100ms debounce
+};
+
+window.addEventListener('resize', window.resizeHandler);
 
 // Main initialization when DOM content is loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -1668,22 +2125,25 @@ document.addEventListener('DOMContentLoaded', function() {
   // Set up document click handler
   setupDocumentClickHandler();
   
-  // Call adjustGameScaling on load
+  // Call adjustGameScaling on load - this is critical for initial sizing
   adjustGameScaling();
   
   // Initialize the game
   initGame();
   
+  // Make sure to adjust scaling after game initialization as well
+  setTimeout(adjustGameScaling, 300);
+  
   // Set up new game button
   newGameBtn.addEventListener("click", function(event) {
-	  debug('New Game button clicked');
-	  event.stopPropagation();
-	  
-	  modePicker.classList.remove("hidden");
-	  updateModePicker();
-	  
-	  // Position the mode picker
-	  positionPicker(modePicker, newGameBtn, true);
+    debug('New Game button clicked');
+    event.stopPropagation();
+    
+    modePicker.classList.remove("hidden");
+    updateModePicker();
+    
+    // Position the mode picker
+    positionPicker(modePicker, newGameBtn, true);
   });
   
   // Initialize service worker
@@ -1697,5 +2157,8 @@ document.addEventListener('DOMContentLoaded', function() {
     modePicker.classList.remove("hidden");
     modePicker.style.display = 'flex';
     updateModePicker();
+    
+    // Add an extra scaling adjustment after UI is fully visible
+    setTimeout(adjustGameScaling, 500);
   }, 500); // Short delay to ensure everything is loaded
 });
