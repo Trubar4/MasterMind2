@@ -1,5 +1,5 @@
 // App version - increment this when making changes
-const APP_VERSION = '2.0.4';
+const APP_VERSION = '2.0.5';
 
 // ============================
 // 1. CONSTANTS AND GLOBALS
@@ -334,6 +334,9 @@ function updateModePicker() {
         opt.classList.toggle('selected', parseInt(opt.dataset.length) === CODE_LENGTH);
       });
       
+      // Recalculate grid layout for new CODE_LENGTH
+      calculateGridLayout();
+      
       // Prevent event bubbling
       event.stopPropagation();
     });
@@ -428,6 +431,9 @@ function initGame() {
   
   // Always remove any existing message first
   removeFindCodeMessage();
+  
+  // Calculate grid layout based on current CODE_LENGTH
+  calculateGridLayout();
   
   // Set up UI for the different modes
   if (currentMode === GAME_MODES.CODEBREAKER) {
@@ -915,6 +921,9 @@ function ensurePerfectCircles() {
 function adjustGameScaling() {
   debug('Adjusting game scaling with aspect ratio preservation');
   
+  // Calculate the grid layout first
+  calculateGridLayout();
+  
   const gameWrapper = document.querySelector('.game-wrapper');
   const container = document.querySelector('.container');
   
@@ -1112,6 +1121,7 @@ function positionPicker(pickerElement, targetElement, isModePicker = false) {
  * Ensure the color picker has all color options
  */
 function ensureColorPickerOptions() {
+  debug('Ensuring color picker options with matching sizes');
   const colorsContainer = colorPicker.querySelector('.colors');
   
   // Clear existing colors
@@ -1123,6 +1133,60 @@ function ensureColorPickerOptions() {
   // Add or remove five-circles class
   colorPicker.classList.toggle('five-circles', isFiveCircles);
   
+  // Get the size of the current game circles
+  let circleSize;
+  if (isCodemakerTurn) {
+    // Get size from guess area circles
+    const guessCircle = guessArea.querySelector('.circle');
+    if (guessCircle) {
+      circleSize = window.getComputedStyle(guessCircle).width;
+    }
+  } else {
+    // Get size from the current row circles
+    const currentRowCircle = document.querySelector(`.circles-container[data-row="${currentRow}"] .circle`);
+    if (currentRowCircle) {
+      circleSize = window.getComputedStyle(currentRowCircle).width;
+    }
+  }
+  
+  // If we couldn't get a size, use the default based on screen width
+  if (!circleSize) {
+    if (window.innerWidth <= 320) {
+      circleSize = isFiveCircles ? '21px' : '28px';
+    } else if (window.innerWidth <= 400) {
+      circleSize = isFiveCircles ? '24px' : '32px';
+    } else if (window.innerWidth <= 500) {
+      circleSize = isFiveCircles ? '28px' : '36px';
+    } else {
+      circleSize = isFiveCircles ? '32px' : '40px';
+    }
+  }
+  
+  // Create style for color options with dynamic size
+  const styleElement = document.getElementById('color-option-styles') || document.createElement('style');
+  styleElement.id = 'color-option-styles';
+  styleElement.textContent = `
+    .color-option {
+      width: ${circleSize};
+      height: ${circleSize};
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #ccc;
+      box-sizing: border-box;
+      transition: transform 0.1s;
+      pointer-events: auto !important;
+    }
+    
+    .color-option:hover, .color-option:active {
+      transform: scale(1.1);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+    }
+  `;
+  
+  if (!document.getElementById('color-option-styles')) {
+    document.head.appendChild(styleElement);
+  }
+  
   // Add all color options
   COLORS.forEach(color => {
     const option = document.createElement('div');
@@ -1131,6 +1195,15 @@ function ensureColorPickerOptions() {
     option.addEventListener('click', () => selectColor(color));
     colorsContainer.appendChild(option);
   });
+  
+  // Adjust color picker grid for 5 circles if needed
+  if (isFiveCircles) {
+    colorsContainer.style.gridTemplateColumns = 'repeat(4, auto)';
+    colorsContainer.style.gap = '4px';
+  } else {
+    colorsContainer.style.gridTemplateColumns = 'repeat(4, auto)';
+    colorsContainer.style.gap = '8px';
+  }
 }
 
 /**
@@ -1225,6 +1298,80 @@ function fixClickHandlers() {
   circles.forEach(circle => {
     circle.style.pointerEvents = 'auto';
   });
+}
+
+function calculateGridLayout() {
+  debug('Calculating grid layout for CODE_LENGTH: ' + CODE_LENGTH);
+  
+  let col1Width, col2Width, col4Width, col6Width, gapSize;
+  
+  // Base measurements on screen width
+  if (window.innerWidth <= 320) { // Very small screens
+    col1Width = 20;
+    col2Width = 20;
+    col6Width = 50;
+    gapSize = 1;
+  } else if (window.innerWidth <= 400) { // Small screens
+    col1Width = 25;
+    col2Width = 25;
+    col6Width = 60;
+    gapSize = 3;
+  } else if (window.innerWidth <= 500) { // Medium screens
+    col1Width = 30;
+    col2Width = 30;
+    col6Width = 70;
+    gapSize = 4;
+  } else { // Large screens
+    col1Width = 40;
+    col2Width = 40;
+    col6Width = 80;
+    gapSize = 8;
+  }
+  
+  // Calculate circle size based on screen width and CODE_LENGTH
+  let circleSize;
+  if (window.innerWidth <= 320) {
+    circleSize = CODE_LENGTH === 5 ? 21 : 28;
+  } else if (window.innerWidth <= 400) {
+    circleSize = CODE_LENGTH === 5 ? 24 : 32;
+  } else if (window.innerWidth <= 500) {
+    circleSize = CODE_LENGTH === 5 ? 28 : 36;
+  } else {
+    circleSize = CODE_LENGTH === 5 ? 32 : 40;
+  }
+  
+  // Calculate column 4 width based on circle size and count
+  col4Width = (circleSize * CODE_LENGTH) + (gapSize * (CODE_LENGTH - 1));
+  
+  // Create grid template columns string
+  const gridTemplate = `${col1Width}px ${col2Width}px 3px ${col4Width}px 3px ${col6Width}px`;
+  
+  debug(`Grid template: ${gridTemplate}`);
+  
+  // Apply the grid template to all grid elements
+  const gridElements = document.querySelectorAll('.header, .row, .controls, .top-bar');
+  gridElements.forEach(element => {
+    element.style.gridTemplateColumns = gridTemplate;
+  });
+  
+  // Update circles container and guess area width
+  const circleContainers = document.querySelectorAll('.circles-container, #guess-area');
+  circleContainers.forEach(container => {
+    container.style.width = `${col4Width}px`;
+    container.style.gap = `${gapSize}px`;
+  });
+  
+  // Update circle size for both circle containers and guess area
+  const allCircles = document.querySelectorAll('.circles-container .circle, #guess-area .circle');
+  allCircles.forEach(circle => {
+    circle.style.width = `${circleSize}px`;
+    circle.style.height = `${circleSize}px`;
+    circle.style.minWidth = `${circleSize}px`;
+    circle.style.minHeight = `${circleSize}px`;
+  });
+  
+  // Ensure perfectly round circles
+  ensurePerfectCircles();
 }
 
 // ============================
