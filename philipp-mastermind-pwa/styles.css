@@ -1,33 +1,6 @@
-.guess-circle-cell {
-    grid-column: 4; /* Updated for new grid structure */
-}
-
-.circle-cell {
-    text-align: center;
-    position: relative;
-}
-
-.row-number {
-    color: #212121;
-}
-
-.row {
-    display: grid;
-}
-
-.game-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100vh;
-  padding: 0;
-  margin: 0;
-  overflow: hidden;
-  position: relative;
-  pointer-events: auto !important;
-}
-
+/* ============================
+   1. RESET AND GLOBAL STYLES
+   ============================ */
 body {
   margin: 0;
   padding: 0;
@@ -36,135 +9,144 @@ body {
   overflow: hidden;
   display: block;
   background-color: #F5F5F5;
+  position: fixed; /* Prevent page scrolling */
+  top: 0;
+  left: 0;
+}
+
+/* ============================
+   2. LAYOUT STRUCTURE
+   ============================ */
+.game-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  height: 100vh;
+  padding: 0;
+  margin: 0;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .container {
-  width: 400px; /* Set a fixed base width */
-  position: relative;
-  /* Remove max-width and max-height constraints to allow JS scaling to control size */
-  /* We'll handle scaling through JS */
-  transform-origin: center center;
-  will-change: transform; /* Optimize for transforms */
+  width: auto !important; /* Let content determine width */
+  max-width: 400px; /* Maximum width */
+  min-width: 280px; /* Minimum width for tiny screens */
+  margin: 0 auto;
+  padding: 0;
+  box-sizing: border-box;
+  transform-origin: center top;
+  will-change: transform;
 }
 
 .container::before {
-    display: none;
-	pointer-events: auto !important;
+  display: none;
 }
 
-.top-bar {
+/* Grid Structure */
+.header, .row, .controls, .top-bar {
+  width: 100%;
   display: grid;
-  grid-template-columns: 40px 40px 3px 188px 3px minmax(80px, auto);
-  align-items: center;
-  margin-bottom: 5px;
-  position: relative;
-  padding: 8px 0;
-  border-bottom: 2px solid #D6DCE5;
-  width: 100%;
-}
-
-h1 {
-    grid-column: 1 / span 4;
-    font-size: clamp(1.1rem, 2.75vw, 1.32rem);
-    color: #212121;
-    margin: 0;
-    text-align: left;
-    padding-left: 10px;
-}
-
-.language-switcher {
-    grid-column: 6;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.header {
-    margin-bottom: 2px;
-    display: grid;
-	grid-template-columns: 40px 40px 3px 188px 3px minmax(80px, auto);
-}
-
-.colors-header {
-    grid-column: 2;
-    font-size: 1rem;
-    color: #1976D2;
-    text-align: center;
-    padding: 4px;
-    width: 100%;
-}
-
-.positions-header {
-    grid-column: 6;
-    font-size: 1rem;
-    color: #D32F2F;
-    text-align: center;
-    padding: 0;
-    width: 100%;
-}
-
-#board {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
-  background-color: #D6DCE5;
-  width: 100%;
-}
-
-/* Remove previous background approach */
-#board::before {
-    display: none;
-}
-
-.header, .row, .roles, .controls {
-  width: 100%;
-  margin-top: 2px;
-  display: grid;
-  grid-template-columns: 40px 40px 3px 188px 3px minmax(80px, auto);
+  grid-template-columns: 40px 40px 3px 188px 3px 80px;
   gap: 0;
   column-gap: 0;
   align-items: center;
   padding: 0;
   position: relative;
   border: none;
-  margin-bottom: 8px;
-  background-color: #F5F5F5;
   margin: 0;
+  background-color: transparent;
 }
 
+.top-bar {
+  margin-bottom: 5px;
+  padding: 8px 0;
+  border-bottom: 2px solid #D6DCE5;
+}
+
+.header {
+  margin-bottom: 2px;
+}
+
+.row {
+  min-height: 40px;
+  max-height: 44px;
+  padding: 2px 0;
+}
+
+.header::after, .row::after, .roles::after, .controls::after {
+  display: none !important;
+}
+
+.row, .header, .roles, .controls {
+  border-bottom: none !important;
+  margin-top: 1px;
+  margin-bottom: 1px;
+  padding: 1px 0;
+}
+
+/* ============================
+   3. BOARD AND ROWS
+   ============================ */
+#board {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #D6DCE5;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+#board::before {
+  display: none;
+}
+
+#board .row:nth-child(odd) {
+  background-color: #F0F0F0;
+}
+
+#board .row:nth-child(even) {
+  background-color: #F5F5F5;
+}
+
+/* Row elements */
 .row-number {
-    grid-column: 1;
-    font-size: 1.1rem;
-    color: #212121;
-    text-align: center;
-    padding: 0;
-    width: 40px;
+  grid-column: 1;
+  font-size: 1.1rem;
+  color: #212121;
+  text-align: center;
+  padding: 0;
+  width: 40px;
 }
 
 .colors-feedback {
-    grid-column: 2;
-    font-size: 1.1rem;
-    color: #1976D2;
-    text-align: center;
-    padding: 0;
-    margin: 0;
-    width: 40px;
-    font-weight: bold;
+  grid-column: 2;
+  font-size: 1.1rem;
+  color: #1976D2;
+  text-align: center;
+  padding: 0;
+  margin: 0;
+  width: 40px;
+  font-weight: bold;
 }
 
 .position-feedback {
-    grid-column: 6;
-    font-size: 1.1rem;
-    color: #D32F2F;
-    text-align: center;
-    padding: 0;
-    margin: 0;
-    width: 80px;
-    font-weight: bold;
+  grid-column: 6;
+  font-size: 1.1rem;
+  color: #D32F2F;
+  text-align: center;
+  padding: 0;
+  margin: 0;
+  width: 80px;
+  font-weight: bold;
 }
 
+/* ============================
+   4. CIRCLES AND CONTAINERS
+   ============================ */
 .circles-container, #guess-area {
   grid-column: 4;
   display: flex;
@@ -173,127 +155,68 @@ h1 {
   width: 188px;
   padding: 2px;
   margin: 0 auto;
-  height: 40px;
+  height: auto;
+  min-height: 40px;
   background-color: #D6DCE5;
+  box-sizing: border-box;
 }
 
 .circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: white;
-    border: 2px solid #B0BEC5;
-    cursor: pointer;
-    box-sizing: border-box;
-    margin: 0;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-	pointer-events: auto !important;
-}
-
-.check-btn {
-    font-size: 0.9rem;
-    padding: 0.4rem 0.8rem;
-    background-color: #B0BEC5;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    width: 80px; /* Match column width exactly */
-    height: 36px;
-    font-weight: bold;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: static;
-    transform: none;
-    grid-column: 6;
-	margin-left: 10px;
-}
-
-.check-btn.active {
-    background-color: #6200EE;
-}
-
-.check-btn.disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.roles {
-    margin-top: 2px;
-}
-
-.controls {
-  width: 100%;
-  margin-top: 5px;
-  display: grid;
-  grid-template-columns: 40px 40px 3px 188px 3px minmax(80px, auto);
-  gap: 0;
-  column-gap: 0;
-  align-items: center;
-  padding: 0;
-  position: relative;
-  border: none;
-  margin-bottom: 8px;
-  background-color: #F5F5F5;
+  width: 40px;
+  height: 40px;
+  aspect-ratio: 1/1 !important;
+  border-radius: 50%;
+  background-color: white;
+  border: 2px solid #B0BEC5;
+  cursor: pointer;
+  box-sizing: border-box;
   margin: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  flex-shrink: 0;
+  min-width: 28px;
+  min-height: 28px;
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
 }
 
-#codemaker-label {
-    grid-column: 1 / span 2;
-    font-size: 1rem;
-    font-weight: bold;
-    color: #B0BEC5;
-    text-align: center;
-    padding: 8px 0;
-    border-right: none;
+/* ============================
+   5. HEADER AND TITLE
+   ============================ */
+h1 {
+  grid-column: 1 / span 4;
+  font-size: clamp(1.1rem, 2.75vw, 1.32rem);
+  color: #212121;
+  margin: 0;
+  text-align: left;
+  padding-left: 10px;
 }
 
-#codebreaker-label {
-    grid-column: 6;
-    font-size: 1rem;
-    font-weight: bold;
-    color: #B0BEC5;
-    text-align: center;
-    padding: 0;
-    border-left: none;
-    height: 36px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
+.colors-header {
+  grid-column: 2;
+  font-size: 1rem;
+  color: #1976D2;
+  text-align: center;
+  padding: 4px;
+  width: 100%;
 }
 
-#codemaker-label.active, #codebreaker-label.active {
-    color: #212121;
+.positions-header {
+  grid-column: 6;
+  font-size: 1rem;
+  color: #D32F2F;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  margin: 0 auto;
 }
 
-#mode-btn {
-    grid-column: 4;
-    font-size: 0.9rem;
-    padding: 0.4rem;
-    background-color: #6200EE;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    width: 120px;
-    height: 36px;
-    margin: 0 auto;
-    font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-/* Four-column controls layout */
-.controls {
-    display: grid;
-}
-
-#new-gamebtn, #submitbtn {
+/* ============================
+   6. BUTTONS AND CONTROLS
+   ============================ */
+.check-btn, #new-gamebtn, #submitbtn, #mode-btn {
   font-size: 0.9rem;
   padding: 0.4rem;
   background-color: #6200EE;
@@ -301,68 +224,106 @@ h1 {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  height: 36px;
   font-weight: bold;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   display: flex;
   justify-content: center;
   align-items: center;
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+.check-btn {
+  grid-column: 6;
+  width: 80px;
+  height: 36px;
+  margin: 0 auto;
 }
 
 #new-gamebtn {
   grid-column: 1 / span 2;
   width: 90%;
+  height: 36px;
   margin: 0 auto;
-}
-
-#guess-area {
-    grid-column: 4;
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    width: 188px; /* Match column width exactly */
-    padding: 0;
-    margin: 0 auto;
-    background-color: #D6DCE5;
 }
 
 #submitbtn {
   grid-column: 6;
-  width: 90%;
-  max-width: 80px; /* Add max-width to prevent oversizing */
-  margin: 0 auto;
-  background-color: #B0BEC5;
-  font-size: 0.9rem;
-  padding: 0.4rem;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  width: 80px;
+  max-width: 80px;
   height: 36px;
-  font-weight: bold;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  margin: 0 auto;
+  padding: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  /* Make sure button responds to scaling */
-  transform-origin: center center;
-  will-change: transform;
+  text-align: center;
 }
 
-#submitbtn.active {
+#mode-btn {
+  grid-column: 4;
+  width: 120px;
+  height: 36px;
+  margin: 0 auto;
+}
+
+/* Button states */
+.check-btn.disabled, #submitbtn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #B0BEC5;
+}
+
+.check-btn.active, #submitbtn.active {
   background-color: #6200EE;
 }
 
+/* ============================
+   7. ROLES SECTION
+   ============================ */
+.roles {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 !important;
+  width: 100%;
+}
+
+#codemaker-label, #codebreaker-label {
+  grid-column: unset;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #B0BEC5;
+  text-align: center;
+  padding: 8px 0;
+}
+
+#codebreaker-label {
+  height: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+#codemaker-label.active, #codebreaker-label.active {
+  color: #212121;
+}
+
+/* ============================
+   8. COLOR PICKER
+   ============================ */
 .color-picker {
   position: fixed;
-  background-color: #DAE3F3; /* Match the game's background color scheme */
+  background-color: #DAE3F3;
   border: 2px solid #B0BEC5;
   border-radius: 8px;
   padding: 12px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  z-index: 2000;
+  z-index: 2000 !important;
   transform-origin: top center;
   will-change: transform;
+  pointer-events: auto !important;
 }
 
 .colors {
@@ -379,9 +340,10 @@ h1 {
   border: 2px solid #ccc;
   box-sizing: border-box;
   transition: transform 0.1s;
+  pointer-events: auto !important;
 }
 
-.color-option:hover {
+.color-option:hover, .color-option:active {
   transform: scale(1.1);
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
 }
@@ -398,29 +360,9 @@ h1 {
   transform: translateX(-50%);
 }
 
-.hidden {
-    display: none;
-}
-
-.lang-option {
-    font-size: clamp(1rem, 2.5vw, 1.2rem);
-    color: #B0BEC5;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 4px;
-}
-
-.lang-option.active {
-    color: #212121;
-    font-weight: bold;
-    background-color: #f0f0f0;
-}
-
-.lang-separator {
-    color: #B0BEC5;
-    font-size: 1.2rem;
-}
-
+/* ============================
+   9. MODE PICKER
+   ============================ */
 #modepicker {
   position: fixed;
   top: 50%;
@@ -428,66 +370,42 @@ h1 {
   transform: translate(-50%, -50%);
   width: clamp(200px, 80%, 300px);
   max-width: 300px;
+  background-color: #DAE3F3;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 2000 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto !important;
 }
 
-#modepicker:after {
-    content: "";
-    position: absolute;
-    bottom: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 10px solid transparent;
-    border-right: 10px solid transparent;
-    border-top: 10px solid #DAE3F3;
-}
-
-#modepicker:before {
-    content: "";
-    position: absolute;
-    bottom: -11px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 11px solid transparent;
-    border-right: 11px solid transparent;
-    border-top: 11px solid #ccc;
-}
-
-#modepicker.hidden {
-    display: none;
+#modepicker:after, #modepicker:before {
+  display: none;
 }
 
 .mode-option {
-    cursor: pointer;
-    padding: 5px 10px;
-    margin: 5px 0;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-    font-size: clamp(0.8rem, 2vw, 1rem);
-    color: #B0BEC5;
-    text-align: center;
-    width: 100%;
+  cursor: pointer;
+  padding: 5px 10px;
+  margin: 5px 0;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  color: #B0BEC5;
+  text-align: center;
+  width: 100%;
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
 }
 
 .mode-option:hover {
-    background-color: #e0e0e0;
+  background-color: #e0e0e0;
 }
 
 .mode-option.selected, .mode-option.active {
-    color: #212121;
-    font-weight: bold;
-}
-
-.find-code-message {
-    text-align: center;
-    font-weight: bold;
-    font-size: 0.8rem;
-    font-style: italic;
-    grid-column: 1 / span 6;
-    width: 100%;
+  color: #212121;
+  font-weight: bold;
 }
 
 .mode-separator {
@@ -498,6 +416,44 @@ h1 {
   border: none;
 }
 
+/* ============================
+   10. LANGUAGE SWITCHER
+   ============================ */
+.language-switcher {
+  grid-column: 6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.lang-option {
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  color: #B0BEC5;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+.lang-option.active {
+  color: #212121;
+  font-weight: bold;
+  background-color: #f0f0f0;
+}
+
+.lang-separator {
+  color: #B0BEC5;
+  font-size: 1.2rem;
+}
+
+/* ============================
+   11. CIRCLE LENGTH SELECTOR
+   ============================ */
 .circles-selector {
   display: flex;
   align-items: center;
@@ -529,13 +485,9 @@ h1 {
   font-size: 0.9rem;
 }
 
-/* For 5-circle mode, make color options a bit smaller */
-.five-circles .color-option {
-  width: 32px;
-  height: 32px;
-}
-
-/* Adjust circles container to handle 5 circles */
+/* ============================
+   12. FIVE CIRCLES MODE
+   ============================ */
 .circles-container.five-circles, 
 #guess-area.five-circles {
   gap: 4px;
@@ -547,87 +499,71 @@ h1 {
   height: 32px;
 }
 
-button {
-  pointer-events: auto !important;
+.five-circles .color-option {
+  width: 32px;
+  height: 32px;
 }
 
-.color-option {
-  pointer-events: auto !important;
+/* ============================
+   13. FIND CODE MESSAGE
+   ============================ */
+.find-code-message {
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: 4px 0;
+  margin: 0;
+  grid-column: 1 / span 6;
+  width: 100%;
+  text-align: center;
 }
 
-.lang-option {
-  pointer-events: auto !important;
+/* ============================
+   14. UTILITY CLASSES
+   ============================ */
+.hidden {
+  display: none;
 }
 
-.mode-option {
-  pointer-events: auto !important;
-}
-
-#color-picker {
-  pointer-events: auto !important;
-  z-index: 2000;
-}
-
-#modepicker {
-  pointer-events: auto !important;
-  z-index: 2000;
-}
-
-/* Ensure all colors define properly on touch devices */
-.color-option:hover,
-.color-option:active {
-  transform: scale(1.1);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
-}
-
-/* Add tap highlighting for mobile */
-.circle,
-.color-option,
-.lang-option,
-.mode-option,
-button {
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-}
-
-/* Make sure the color picker has higher z-index */
-.color-picker {
-  z-index: 2000 !important;
-}
-
-
-/* Style adjustments for mobile */
-
+/* ============================
+   15. MEDIA QUERIES
+   ============================ */
+/* Larger screens */
 @media (min-width: 500px) {
-  /* Desktop optimized */
   .container {
-    width: 400px; /* Fixed base width */
+    width: 400px;
   }
 }
 
-@media (max-width: 499px) {
-  /* Mobile optimized - Let JS handle the scaling */
-  .container {
-    width: 400px; /* Keep consistent base width */
-  }
-  #submitbtn {
-    max-width: 70px;
-    font-size: 0.8rem;
-    height: 32px;
-  }
-}
-
+/* Medium screens */
 @media (max-width: 500px) {
-  .header, .row, .roles, .controls, .top-bar {
-    grid-template-columns: 30px 30px 3px 160px 3px minmax(70px, auto);
+  .header, .row, .controls, .top-bar {
+    grid-template-columns: 30px 30px 3px 160px 3px 70px;
   }
   
   .circles-container, #guess-area {
     width: 160px;
     gap: 4px;
   }
+  
+  .circle {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .check-btn, #submitbtn {
+    width: 70px;
+    font-size: 0.85rem;
+  }
+  
   .color-option {
     width: 36px;
     height: 36px;
+  }
+  
+  .circles-container.five-circles .circle,
+  #guess-area.five-circles .circle {
+    width: 28px;
+    height: 28px;
   }
   
   .five-circles .color-option {
@@ -636,18 +572,41 @@ button {
   }
 }
 
+/* Small screens */
 @media (max-width: 400px) {
-  .header, .row, .roles, .controls, .top-bar {
-    grid-template-columns: 25px 25px 3px 141px 3px minmax(60px, auto);
+  .header, .row, .controls, .top-bar {
+    grid-template-columns: 25px 25px 3px 141px 3px 60px;
   }
   
   .circles-container, #guess-area {
     width: 141px;
     gap: 3px;
   }
+  
+  .circle {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .check-btn, #submitbtn {
+    width: 60px;
+    font-size: 0.8rem;
+  }
+  
+  #submitbtn {
+    max-width: 60px;
+    height: 32px;
+  }
+  
   .color-option {
     width: 32px;
     height: 32px;
+  }
+  
+  .circles-container.five-circles .circle,
+  #guess-area.five-circles .circle {
+    width: 24px;
+    height: 24px;
   }
   
   .five-circles .color-option {
@@ -655,26 +614,56 @@ button {
     height: 24px;
   }
   
-  #submitbtn {
-    max-width: 60px;
-    font-size: 0.8rem;
-    height: 32px;
+  #board .row {
+    min-height: 36px;
+    max-height: 40px;
   }
 }
 
+/* Very small screens */
 @media (max-width: 320px) {
+  .header, .row, .controls, .top-bar {
+    grid-template-columns: 20px 20px 3px 119px 3px 50px;
+  }
+  
+  .circles-container, #guess-area {
+    width: 119px;
+    gap: 1px;
+  }
+  
+  .circle {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .check-btn, #submitbtn {
+    width: 50px;
+    font-size: 0.75rem;
+  }
+  
+  #submitbtn {
+    max-width: 50px;
+    height: 28px;
+  }
+  
   .color-option {
     width: 28px;
     height: 28px;
+  }
+  
+  .circles-container.five-circles .circle,
+  #guess-area.five-circles .circle {
+    width: 21px;
+    height: 21px;
   }
   
   .five-circles .color-option {
     width: 21px;
     height: 21px;
   }
-  #submitbtn {
-    max-width: 50px;
-    font-size: 0.7rem;
-    height: 28px;
+  
+  #board .row {
+    min-height: 32px;
+    max-height: 36px;
   }
 }
